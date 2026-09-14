@@ -188,6 +188,73 @@
 	 * change shows on the notes already up rather than only on the next ones. */
 	var RECOLOUR_ON = ['colourNotes', 'landmarkC', 'landmarkF', 'landmarkG'];
 
+	var OPTIONS_OPEN_KEY = 'htp.options.open';
+
+	/* The options are a drawer: open by default, and collapsed they give the
+	 * whole row back to the staff. The handle lives in the tab bar, so hiding
+	 * them costs no height of its own. */
+	function setOptionsOpen(open) {
+		var bar = document.getElementById('htpOptionsBar');
+		var toggle = document.getElementById('htpOptionsToggle');
+		if (bar) bar.setAttribute('data-open', open ? 'true' : 'false');
+		if (toggle) {
+			toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+			toggle.classList.toggle('is-active', open);
+		}
+		try { window.localStorage.setItem(OPTIONS_OPEN_KEY, open ? '1' : '0'); }
+		catch (e) { /* non-fatal */ }
+	}
+
+	function optionsAreOpen() {
+		var bar = document.getElementById('htpOptionsBar');
+		return !bar || bar.getAttribute('data-open') !== 'false';
+	}
+
+	function readStoredOptionsOpen() {
+		try {
+			var stored = window.localStorage.getItem(OPTIONS_OPEN_KEY);
+			return stored === null ? true : stored === '1';
+		} catch (e) {
+			return true;
+		}
+	}
+
+	/* ----------------------------------------------------------- full screen */
+
+	/*
+	 * Fullscreen has to be asked for from a real user gesture, so this only ever
+	 * runs from the button's own click handler. Prefixed names are still needed
+	 * for Safari.
+	 */
+	function fullscreenElement() {
+		return document.fullscreenElement || document.webkitFullscreenElement || null;
+	}
+
+	function toggleFullscreen() {
+		if (fullscreenElement()) {
+			var exit = document.exitFullscreen || document.webkitExitFullscreen;
+			if (exit) exit.call(document);
+			return;
+		}
+		var root = document.documentElement;
+		var request = root.requestFullscreen || root.webkitRequestFullscreen;
+		if (request) {
+			var result = request.call(root);
+			/* Chrome rejects the promise when the gesture is not trusted. */
+			if (result && result.catch)
+				result.catch(function (err) { console.warn('[HTP] full screen refused:', err); });
+		}
+	}
+
+	function syncFullscreenButton() {
+		var button = document.getElementById('htpFullscreen');
+		if (!button) return;
+		var on = !!fullscreenElement();
+		button.classList.toggle('is-active', on);
+		button.setAttribute('aria-pressed', on ? 'true' : 'false');
+		button.textContent = on ? 'Exit full screen' : 'Full screen';
+	}
+
 	var STAFF_SIZE_MIN = 24;
 	var STAFF_SIZE_MAX = 110;
 	var STAFF_SIZE_STEP = 6;
@@ -264,6 +331,19 @@
 				&& typeof window.HTP.applyNoteColours === 'function')
 				window.HTP.applyNoteColours();
 		});
+
+		var fullscreenButton = document.getElementById('htpFullscreen');
+		if (fullscreenButton) {
+			fullscreenButton.addEventListener('click', toggleFullscreen);
+			document.addEventListener('fullscreenchange', syncFullscreenButton);
+			document.addEventListener('webkitfullscreenchange', syncFullscreenButton);
+			syncFullscreenButton();
+		}
+
+		var optionsToggle = document.getElementById('htpOptionsToggle');
+		if (optionsToggle)
+			optionsToggle.addEventListener('click', function () { setOptionsOpen(!optionsAreOpen()); });
+		setOptionsOpen(readStoredOptionsOpen());
 
 		applyClefVisibility();
 

@@ -28,10 +28,12 @@
   	<div class="htp-app">
   		<header class="htp-tabbar">
   			<div class="htp-tabs" id="htpTabs" role="tablist"></div>
+  			<button type="button" class="htp-iconbtn htp-iconbtn--drawer" id="htpOptionsToggle" aria-expanded="true" aria-controls="htpOptionsBar" title="Show or hide the options"><span class="htp-drawer-chevron" aria-hidden="true"></span>Options</button>
   			<button type="button" class="htp-iconbtn" id="htpSplit" aria-pressed="false" title="Show two modules at once">Split</button>
+  			<button type="button" class="htp-iconbtn" id="htpFullscreen" aria-pressed="false" title="Fill the screen">Full screen</button>
   		</header>
 
-  		<div class="htp-optionsbar">
+  		<div class="htp-optionsbar" id="htpOptionsBar" data-open="true">
   	   	<div class="htp-options">
   	   		<label title="Space the staves by the true pitch distance between their clefs instead of the wider gap sheet music conventionally engraves">
   	   			<input type="checkbox" id="optMusicalClefDistance"> Musical clef distance
