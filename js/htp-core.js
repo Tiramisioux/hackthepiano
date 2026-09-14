@@ -228,6 +228,10 @@ window.HTP = (function (window, document) {
 		musicalClefDistance: false,
 		lineMarkers: false,
 		colourKeys: false,
+		colourNotes: false,
+		/* Each clef can be hidden on its own. */
+		showClefTreble: true,
+		showClefBass: true,
 		showNoteNames: false,
 		keyNames: false,
 		/* Whether the note-name readout spells "C4" or just "C". */

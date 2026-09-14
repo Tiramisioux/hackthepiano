@@ -1247,8 +1247,19 @@ $(function(){
 		if (window.HTP && typeof window.HTP.notifyMarkersChanged === 'function')
 			window.HTP.notifyMarkersChanged();
 	};
+	/*
+	 * The trainer's own staff containers.
+	 *
+	 * Scoped deliberately: a module may render its own staves with these same
+	 * classes — js/modules/free-practice.js does — and a bare $('.staffContainer')
+	 * would reach into them and apply this level's padding and clef spacing to
+	 * staves that have nothing to do with the exercise.
+	 */
+	var trainerStaffContainers = function(){
+		return $('#staff1').closest('.staffsContainer').find('.staffContainer');
+	};
 	var applyStaffSpacing = function(){
-		var containers = $('.staffContainer');
+		var containers = trainerStaffContainers();
 		containers.css('margin-top', '');
 		
 		if (!window.HTP || !window.HTP.settings || !window.HTP.settings.musicalClefDistance)
@@ -1345,7 +1356,12 @@ $(function(){
 			var numberOfAdditionalLines = getNumberOfAdditionalLines(shiftInClef);
 			numberOfAdditionalTopLines = Math.max(numberOfAdditionalTopLines, numberOfAdditionalLines);
 			numberOfAdditionalBottomLines = Math.min(numberOfAdditionalBottomLines, numberOfAdditionalLines);
-			symbol.append($(symbols.notes[note.decorator]).css({top: (-shiftInClef * settings.shiftSize)+'em'}));
+			var noteGlyph = $(symbols.notes[note.decorator])
+				.css({top: (-shiftInClef * settings.shiftSize)+'em'});
+			var noteColour = landmarkColourForSound(note.sound);
+			if (noteColour)
+				noteGlyph.css('fill', noteColour);
+			symbol.append(noteGlyph);
 			activeNote.notes.push(note);
 		});
 		addAdditionalLines(symbol, numberOfAdditionalTopLines);
@@ -1579,13 +1595,86 @@ $(function(){
 			|| candidates.filter(function(n){ return n.name; })[0]
 			|| candidates[0];
 	};
-	var nameForSound = function(sound){
-		var entry = spellingForSound(sound);
-		if (!entry || !entry.name)
-			return '?';
-		var withOctave = !window.HTP || !window.HTP.settings
+	/*
+	 * How each pitch class is spelled, sharp side and flat side.
+	 *
+	 * The original getName() answers in Dutch/German — Cis, Dis, Ais, Bes — which
+	 * is fine for the note table it feeds but not what most people read. The
+	 * readout spells notes in English instead, with real accidental signs.
+	 *
+	 * Where the two columns differ the pitch is enharmonically ambiguous: the
+	 * same key is A sharp or B flat depending on the music around it.
+	 */
+	var PITCH_SPELLINGS = [
+		{sharp: 'C',  flat: 'C'},
+		{sharp: 'C\u266f', flat: 'D\u266d'},
+		{sharp: 'D',  flat: 'D'},
+		{sharp: 'D\u266f', flat: 'E\u266d'},
+		{sharp: 'E',  flat: 'E'},
+		{sharp: 'F',  flat: 'F'},
+		{sharp: 'F\u266f', flat: 'G\u266d'},
+		{sharp: 'G',  flat: 'G'},
+		{sharp: 'G\u266f', flat: 'A\u266d'},
+		{sharp: 'A',  flat: 'A'},
+		{sharp: 'A\u266f', flat: 'B\u266d'},
+		{sharp: 'B',  flat: 'B'}
+	];
+	var pitchClassOf = function(sound){
+		return (((sound % 12) + 12) % 12);
+	};
+	var isAmbiguousPitch = function(sound){
+		var spelling = PITCH_SPELLINGS[pitchClassOf(sound)];
+		return spelling.sharp !== spelling.flat;
+	};
+	var spellPitch = function(sound, preference){
+		var spelling = PITCH_SPELLINGS[pitchClassOf(sound)];
+		return preference === decorators.flat ? spelling.flat : spelling.sharp;
+	};
+	var showOctaves = function(){
+		return !window.HTP || !window.HTP.settings
 			|| window.HTP.settings.octaveNumbers !== false;
-		return withOctave ? (entry.name + soundOctave(sound)) : entry.name;
+	};
+	/* One definite spelling, for chord roots and anywhere a choice must be made. */
+	var nameForSound = function(sound, preference){
+		var name = spellPitch(sound, preference);
+		return showOctaves() ? (name + soundOctave(sound)) : name;
+	};
+	/*
+	 * How a pitch is shown in the readout. When nothing in the music settles
+	 * which spelling is right, both are offered — "A♯/B♭" — rather than picking
+	 * one and being wrong half the time. Both share an octave number, because
+	 * every ambiguous pair in the table sits in the same octave.
+	 */
+	var displayNameForSound = function(sound, preference){
+		if (preference || !isAmbiguousPitch(sound))
+			return nameForSound(sound, preference);
+		
+		var spelling = PITCH_SPELLINGS[pitchClassOf(sound)];
+		return spelling.sharp + '/' + spelling.flat + (showOctaves() ? soundOctave(sound) : '');
+	};
+	/*
+	 * Which accidental the music calls for, or null when nothing settles it.
+	 *
+	 *   - a key signature with accidentals in it decides (the trainer always has
+	 *     one; the key of C has none, so it decides nothing);
+	 *   - otherwise a recognised chord decides by its root: F and the black-key
+	 *     roots read flat, because B♭, E♭, A♭ and D♭ are the chords people
+	 *     actually play, and every other natural root reads sharp;
+	 *   - otherwise it is genuinely ambiguous.
+	 */
+	var spellingPreference = function(chord){
+		if (state.activeKey && state.activeKey.lines && state.activeKey.lines.length)
+			return state.activeKey.decorator;
+		
+		if (chord)
+		{
+			var rootClass = pitchClassOf(chord.root);
+			if (rootClass === 5 || isAmbiguousPitch(chord.root))
+				return decorators.flat;
+			return decorators.sharp;
+		}
+		
+		return null;
 	};
 	var intervalName = function(semitones){
 		var span = Math.abs(semitones);
@@ -1610,7 +1699,7 @@ $(function(){
 			if (shape.steps.length != steps.length)
 				continue;
 			if (shape.steps.every(function(v, i){ return v === steps[i]; }))
-				return nameForSound(root).replace(/-?\d+$/, '') + ' ' + shape.name;
+				return {root: root, quality: shape.name};
 		}
 		return null;
 	};
@@ -1646,7 +1735,11 @@ $(function(){
 	var describeNotes = function(noteObjs, root){
 		var sounds = noteObjs.map(function(n){ return n.sound; })
 			.sort(function(a, b){ return a - b; });
-		var names = sounds.map(nameForSound);
+		
+		/* Work out the chord first: what it is decides how to spell the notes. */
+		var chord = sounds.length > 2 ? chordName(sounds, root) : null;
+		var preference = spellingPreference(chord);
+		var names = sounds.map(function(s){ return displayNameForSound(s, preference); });
 		
 		if (sounds.length <= 1)
 			return {primary: names.join(''), secondary: ''};
@@ -1654,7 +1747,10 @@ $(function(){
 		if (sounds.length === 2)
 			return {primary: names.join('  '), secondary: intervalName(sounds[1] - sounds[0])};
 		
-		return {primary: names.join('  '), secondary: chordName(sounds, root) || ''};
+		return {
+			primary: names.join('  '),
+			secondary: chord ? (spellPitch(chord.root, preference) + ' ' + chord.quality) : ''
+		};
 	};
 	
 	/*
@@ -1667,6 +1763,36 @@ $(function(){
 	var glyphForDecorator = function(decorator){
 		return decorator == decorators.natural ? symbols.notes.none : symbols.notes[decorator];
 	};
+	/*
+	 * The landmark colour a notehead should be drawn in, or null for plain black.
+	 * Returns null when the option is off, when the pitch is not a landmark, or
+	 * when that landmark has been switched off — the same rules the staff
+	 * markings and the keyboard follow, so all three always agree.
+	 *
+	 * `fill` is an inherited SVG property, so setting it on the <svg> reaches the
+	 * <path> elements inside, which carry no fill of their own.
+	 */
+	var landmarkColourForSound = function(sound){
+		if (!window.HTP || !window.HTP.settings || !window.HTP.settings.colourNotes)
+			return null;
+		var landmark = window.HTP.landmarkForPitchClass(pitchClassOf(sound), soundOctave(sound));
+		return landmark ? landmark.colour : null;
+	};
+	/* Recolour the notes already on the staff, so toggling the option takes
+	 * effect immediately instead of only on the notes drawn after it. */
+	var applyNoteColours = function(){
+		state.activeNotes.forEach(function(item){
+			if (item.type != symbolTypes.note || !item.notes)
+				return;
+			
+			var glyphs = $('svg', item.symbol).filter(function(){
+				return !$(this).hasClass('line') && !$(this).hasClass('played');
+			});
+			item.notes.forEach(function(n, i){
+				glyphs.eq(i).css('fill', landmarkColourForSound(n.sound) || '');
+			});
+		});
+	};
 	var buildNoteGlyph = function(clefId, sound){
 		var entry = spellingForSound(sound);
 		if (!entry || !clefs[clefId])
@@ -1675,6 +1801,11 @@ $(function(){
 		var shiftInClef = entry.clefs[clefId].shift;
 		var glyph = $(glyphForDecorator(entry.decorator))
 			.css({top: (-shiftInClef * settings.shiftSize) + 'em'});
+		
+		var colour = landmarkColourForSound(sound);
+		if (colour)
+			glyph.css('fill', colour);
+		
 		return {glyph: glyph, shift: shiftInClef, entry: entry};
 	};
 	
@@ -1867,7 +1998,7 @@ $(function(){
 		var paddingTop = Math.max(0, state.level.shiftTo - 4) * settings.shiftSize;
 		var paddingBottom = Math.max(0, -state.level.shiftFrom - 4) * settings.shiftSize;
 		
-		$('.staffContainer').css({'padding-top': paddingTop+'em', 'padding-bottom': paddingBottom+'em'});
+		trainerStaffContainers().css({'padding-top': paddingTop+'em', 'padding-bottom': paddingBottom+'em'});
 		
 		removeAllNotes();
 		updateResults();
@@ -1886,6 +2017,7 @@ $(function(){
 	{
 		window.HTP.applyStaffSpacing = applyStaffSpacing;
 		window.HTP.applyLineMarkers = applyLineMarkers;
+		window.HTP.applyNoteColours = applyNoteColours;
 		
 		/*
 		 * Notation primitives for modules that draw their own staves — see

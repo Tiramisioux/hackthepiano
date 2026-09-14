@@ -154,12 +154,16 @@
 			var el = keyElements[key];
 			el.classList.remove('is-landmark');
 			el.style.removeProperty('--htp-key-tint');
+			el.style.removeProperty('--htp-key-tint-soft');
 			if (!on) return;
 			var note = parseInt(key, 10);
 			var landmark = window.HTP.landmarkForPitchClass(((note % 12) + 12) % 12,
 				Math.floor(note / 12) - 1);
 			if (!landmark) return;
 			el.style.setProperty('--htp-key-tint', landmark.colour);
+			/* A lightened version of the same colour, so pressing a landmark key
+			 * highlights in its own hue instead of the generic blue. */
+			el.style.setProperty('--htp-key-tint-soft', window.HTP.shade(landmark.colour, 0.55));
 			el.classList.add('is-landmark');
 		});
 	}
