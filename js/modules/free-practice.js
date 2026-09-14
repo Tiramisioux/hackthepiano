@@ -67,6 +67,50 @@
 		return CLEF_IDS.filter(function (id) { return window.HTP.clefEnabled(id); });
 	}
 
+	/* Half a notehead, in em of the staff size, plus a little air. A note is only
+	 * fully visible once its whole head is inside the box, not just its centre. */
+	var NOTEHEAD_HALF_EM = 0.14;
+
+	/* styles.css nudges `div.staff` down by this much with `top: 0.1em`. The
+	 * container does not move with it, so the staff already hangs that far past
+	 * the bottom edge it is clipped at — which has to be counted, or every note
+	 * near the bottom is short by exactly this. */
+	var STAFF_TOP_OFFSET_EM = 0.1;
+
+	/*
+	 * Open up the staff container so a note outside the staff is actually seen.
+	 *
+	 * The container clips to its padding box and is only as tall as the staff
+	 * itself, so without this a note far above or below is drawn correctly and
+	 * then cut off — which looks exactly like the note failing to register. The
+	 * trainer has the same need and settles it once from the level's fixed range;
+	 * here the range is whatever you just played, so the room is made per note.
+	 *
+	 * The amount comes from markerTopEm(), the same function that places the
+	 * staff lines, the landmark markings and the noteheads themselves — so the
+	 * room made is exactly the room needed. A note that already fits, however far
+	 * outside the staff it looks, moves nothing.
+	 */
+	function makeRoomFor(container, highestShift, lowestShift) {
+		var N = notation();
+		var above = 0;
+		var below = 0;
+
+		if (highestShift !== null) {
+			var topEm = N.markerTopEm(highestShift) - NOTEHEAD_HALF_EM + STAFF_TOP_OFFSET_EM;
+			above = Math.max(0, -topEm);
+		}
+		if (lowestShift !== null) {
+			var bottomEm = N.markerTopEm(lowestShift) + NOTEHEAD_HALF_EM + STAFF_TOP_OFFSET_EM;
+			below = Math.max(0, bottomEm - N.staffHeightEm);
+		}
+
+		container.css({
+			'padding-top': above ? above.toFixed(3) + 'em' : '',
+			'padding-bottom': below ? below.toFixed(3) + 'em' : ''
+		});
+	}
+
 	/* Follow the same options the trainer honours. */
 	function applyOptions() {
 		var active = activeClefs();
@@ -119,11 +163,17 @@
 		});
 
 		active.forEach(function (clefId) {
-			if (!byClef[clefId].length) return;
+			var container = staves[clefId].closest('.staffContainer');
+			if (!byClef[clefId].length) {
+				makeRoomFor(container, null, null);
+				return;
+			}
 
 			var symbol = $('<div class="symbol note visible htp-free-note"></div>');
 			var topLedgers = 0;
 			var bottomLedgers = 0;
+			var highest = null;
+			var lowest = null;
 
 			byClef[clefId].forEach(function (sound) {
 				var built = notation().buildNoteGlyph(clefId, sound);
@@ -133,11 +183,15 @@
 				var ledgers = notation().ledgerLineCount(built.shift);
 				topLedgers = Math.max(topLedgers, ledgers);
 				bottomLedgers = Math.min(bottomLedgers, ledgers);
+
+				highest = (highest === null) ? built.shift : Math.max(highest, built.shift);
+				lowest = (lowest === null) ? built.shift : Math.min(lowest, built.shift);
 			});
 
 			notation().addLedgerLines(symbol, topLedgers);
 			notation().addLedgerLines(symbol, bottomLedgers);
 			staves[clefId].append(symbol);
+			makeRoomFor(container, highest, lowest);
 		});
 
 		updateReadout(group);

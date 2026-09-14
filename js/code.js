@@ -2050,6 +2050,12 @@ $(function(){
 		window.HTP.notation = {
 			shiftSize: settings.shiftSize,
 			renderStaffLines: renderStaffLines,
+			/* Where a given shift sits, in em from the top of the staff box. The
+			 * staff lines, the landmark markings and the noteheads are all placed
+			 * by this, so anything that needs to know whether a note will fit can
+			 * ask the same question they did. */
+			markerTopEm: markerTopEm,
+			staffHeightEm: 2,
 			clefs: clefs,
 			symbols: symbols,
 			/* How far apart two staff boxes must sit to be musically continuous,
