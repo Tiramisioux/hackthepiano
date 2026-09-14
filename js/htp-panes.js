@@ -239,6 +239,13 @@
 			|| null;
 	}
 
+	/* Launched from the Home Screen (iOS) or installed as an app (everywhere
+	 * else), which means there is no browser chrome to escape from. */
+	function isStandalone() {
+		return !!(window.navigator.standalone
+			|| (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches));
+	}
+
 	function fullscreenSupported() {
 		var root = document.documentElement;
 		return !!(root.requestFullscreen || root.webkitRequestFullscreen
@@ -354,8 +361,13 @@
 				document.addEventListener('webkitfullscreenchange', syncFullscreenButton);
 				syncFullscreenButton();
 			} else {
-				/* Better an absent button than one that does nothing. */
+				/* Better an absent button than one that does nothing. An iPhone
+				 * has no Fullscreen API for anything but a <video>, so point at
+				 * the route that does work there — unless the app is already
+				 * running that way, in which case it is full screen already. */
 				fullscreenButton.hidden = true;
+				var hint = document.getElementById('htpInstallHint');
+				if (hint && !isStandalone()) hint.hidden = false;
 			}
 		}
 

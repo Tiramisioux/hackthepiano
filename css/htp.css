@@ -676,3 +676,36 @@ div.staff div.lines .htp-staffline {
 	.htp-footer { display: none; }
 	div.staffsContainer { margin-top: 0.3em; }
 }
+
+/* ------------------------------------------------- installed / standalone */
+
+/*
+ * With viewport-fit=cover the page runs edge to edge, which is what a Home
+ * Screen launch wants — but the notch and the home indicator then sit on top of
+ * the app. These insets are zero in an ordinary browser window, so the rules
+ * cost nothing there.
+ */
+.htp-tabbar {
+	padding-top: env(safe-area-inset-top);
+}
+
+.htp-keyboard {
+	padding-bottom: env(safe-area-inset-bottom);
+}
+
+.htp-app {
+	padding-left: env(safe-area-inset-left);
+	padding-right: env(safe-area-inset-right);
+}
+
+/* Shown only where full screen is impossible and the app is not already
+   installed — it replaces the button rather than sitting beside it. */
+.htp-installhint {
+	font-size: 11px;
+	color: var(--htp-muted);
+	white-space: nowrap;
+}
+
+@media (max-width: 700px) {
+	.htp-installhint { font-size: 10px; }
+}

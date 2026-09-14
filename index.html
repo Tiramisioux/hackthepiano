@@ -2,7 +2,22 @@
 <html lang="en">
   <head>
     <title>Learn notes fast and easy!</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+
+    <!--
+      Installable, which is the only route to a real full screen on an iPhone:
+      Safari there has no Fullscreen API for anything but a <video>, so the app's
+      Full screen button hides itself. Added to the Home Screen it launches in
+      standalone mode with no browser chrome at all, which is better than the
+      button would have been.
+    -->
+    <link rel="manifest" href="manifest.webmanifest">
+    <meta name="theme-color" content="#ffffff">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="HackThePiano">
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
     <meta http-equiv="content-type" content="text/html; charset=utf-8">
 		<meta property="og:type" content="website">
 		<meta property="og:title" content="Learn notes fast and easy!">
@@ -31,6 +46,7 @@
   			<button type="button" class="htp-iconbtn htp-iconbtn--drawer" id="htpOptionsToggle" aria-expanded="true" aria-controls="htpOptionsBar" title="Show or hide the options"><span class="htp-drawer-chevron" aria-hidden="true"></span>Options</button>
   			<button type="button" class="htp-iconbtn" id="htpSplit" aria-pressed="false" title="Show two modules at once">Split</button>
   			<button type="button" class="htp-iconbtn" id="htpFullscreen" aria-pressed="false" title="Fill the screen">Full screen</button>
+  			<span class="htp-installhint" id="htpInstallHint" hidden>Share &rarr; Add to Home Screen for full screen</span>
   		</header>
 
   		<div class="htp-optionsbar" id="htpOptionsBar" data-open="true">

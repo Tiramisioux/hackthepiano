@@ -115,6 +115,24 @@ than erroring.
 Beyond that it assumes a browser from roughly the last decade: ES6, CSS custom
 properties, flexbox and Pointer Events. There is no build step and no polyfills.
 
+### On a phone
+
+The keyboard is multi-touch, so chords work under several fingers, and black
+keys are narrowed in portrait where a proportionally correct one leaves too
+little white key to hit.
+
+For a genuine full screen, **add it to your Home Screen** — Share → Add to Home
+Screen on iOS, or "Install app" in Chrome. It then launches with no browser
+chrome at all. This is the only route on an iPhone: Safari there has no
+Fullscreen API for anything but a `<video>`, so the app's own Full screen button
+hides itself rather than sitting there doing nothing. On a desktop browser, and
+on iPad, the button works normally.
+
+If an iPhone plays no sound, check the **ring/silent switch**. iOS silences
+Web Audio outright when it is set to silent; the app asks for a "playback"
+audio session, which is meant to override that, but the switch is the first
+thing to rule out.
+
 ## Writing a new module
 
 Copy `js/modules/midi-monitor.js`, change the id and title, and add a `<script>`
