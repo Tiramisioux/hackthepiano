@@ -185,6 +185,9 @@
 				 * redraws on a note, so it has to be told. */
 				if (key === 'octaveNumbers')
 					updateReadout(group);
+				/* Note colour is baked into the glyph at build time, so redraw. */
+				if (key === 'colourNotes' || key.indexOf('landmark') === 0)
+					render();
 			});
 			api.onMarkersChanged(applyOptions);
 		},

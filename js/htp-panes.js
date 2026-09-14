@@ -174,6 +174,9 @@
 		{ id: 'optShowNoteNames',       setting: 'showNoteNames',       apply: null },
 		{ id: 'optLineMarkers',         setting: 'lineMarkers',         apply: 'applyLineMarkers' },
 		{ id: 'optColourKeys',          setting: 'colourKeys',          apply: null },
+		{ id: 'optColourNotes',         setting: 'colourNotes',         apply: 'applyNoteColours' },
+		{ id: 'optShowClefTreble',      setting: 'showClefTreble',      apply: null },
+		{ id: 'optShowClefBass',        setting: 'showClefBass',        apply: null },
 		{ id: 'optKeyNames',            setting: 'keyNames',            apply: null },
 		{ id: 'optOctaveNumbers',       setting: 'octaveNumbers',       apply: null },
 		{ id: 'optLandmarkC',           setting: 'landmarkC',           apply: 'applyLineMarkers' },
@@ -181,9 +184,30 @@
 		{ id: 'optLandmarkG',           setting: 'landmarkG',           apply: 'applyLineMarkers' }
 	];
 
+	/* Settings that also change how notes already on a staff are drawn, so the
+	 * change shows on the notes already up rather than only on the next ones. */
+	var RECOLOUR_ON = ['colourNotes', 'landmarkC', 'landmarkF', 'landmarkG'];
+
 	var STAFF_SIZE_MIN = 24;
 	var STAFF_SIZE_MAX = 110;
 	var STAFF_SIZE_STEP = 6;
+
+	/*
+	 * Hide or show each clef glyph on its own. Any key signature drawn beside it
+	 * stays — that is a different piece of information, and losing it would
+	 * change what the notes mean rather than just what you are told.
+	 */
+	var CLEF_TOGGLES = [
+		{ clef: 'treble', setting: 'showClefTreble' },
+		{ clef: 'bass',   setting: 'showClefBass' }
+	];
+
+	function applyClefVisibility() {
+		CLEF_TOGGLES.forEach(function (toggle) {
+			document.body.classList.toggle('htp-hide-clef-' + toggle.clef,
+				window.HTP.settings[toggle.setting] === false);
+		});
+	}
 
 	function clampStaffSize(value) {
 		var size = parseInt(value, 10);
@@ -235,7 +259,13 @@
 
 		window.HTP.onSettingChange(function (key) {
 			if (key === 'staffSize') applyStaffSize();
+			if (key.indexOf('showClef') === 0) applyClefVisibility();
+			if (RECOLOUR_ON.indexOf(key) !== -1
+				&& typeof window.HTP.applyNoteColours === 'function')
+				window.HTP.applyNoteColours();
 		});
+
+		applyClefVisibility();
 
 		/* js/code.js has already drawn the first clef by now, so this both sets
 		 * the restored size and re-applies everything positioned against it. */

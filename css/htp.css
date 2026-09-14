@@ -300,6 +300,11 @@ div.shareContainer { position: static; }
 .htp-key--white.is-active { background: var(--htp-accent-soft); }
 .htp-key--black.is-active { background: var(--htp-accent); }
 
+/* A landmark key highlights in its own colour rather than the generic blue, so
+   pressing it reads as the same landmark you see marked on the staff. Every
+   landmark (C, F, G) is a white key, hence only the white rule. */
+.htp-key--white.is-landmark.is-active { background: var(--htp-key-tint-soft); }
+
 .htp-key__label {
 	position: absolute;
 	bottom: 4px;
@@ -533,4 +538,15 @@ div.staff div.lines .htp-staffline {
 	right: 0;
 	height: 0;
 	border-top: 1px solid #000;
+}
+
+/*
+ * Turning a clef off hides its glyph but keeps whatever the trainer drew beside
+ * it — the key signature accidentals live in the same symbol and are a different
+ * piece of information. The clef glyph is always the symbol's first child; the
+ * accidentals are appended after it.
+ */
+body.htp-hide-clef-treble div.staff div.symbol.clef.treble > svg:first-child,
+body.htp-hide-clef-bass div.staff div.symbol.clef.bass > svg:first-child {
+	display: none;
 }
