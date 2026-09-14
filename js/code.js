@@ -1210,7 +1210,36 @@ $(function(){
 			staffEl.prepend(layer);
 		}
 	};
+	/*
+	 * Draw the five staff lines as elements at the same computed positions the
+	 * notes and the landmark markers use.
+	 *
+	 * The original stylesheet paints them as a tiled background SVG instead. That
+	 * looks identical at one size, but the browser rounds a background tile's
+	 * dimensions, so the painted lines drift away from the computed geometry as
+	 * the staff is resized or the page zoomed — notes stop sitting on their lines
+	 * and the landmark rules land slightly off. Drawing them from markerTopEm()
+	 * like everything else makes that impossible: one formula, one result, at any
+	 * size. css/htp.css turns the background off.
+	 */
+	var STAFF_LINE_SHIFTS = [4, 2, 0, -2, -4];
+	var renderStaffLines = function(staffEl){
+		var lines = $('> .lines', staffEl);
+		if (!lines.length)
+			return;
+		
+		lines.empty();
+		STAFF_LINE_SHIFTS.forEach(function(shift){
+			$('<div class="htp-staffline"></div>')
+				.css({top: markerTopEm(shift) + 'em'})
+				.appendTo(lines);
+		});
+	};
 	var applyLineMarkers = function(){
+		/* Every staff in the page, including one this level does not use — it is
+		 * still drawn, so it still needs its lines. */
+		$('.staff').each(function(){ renderStaffLines($(this)); });
+		
 		state.level.staffs.forEach(function(staff){
 			renderStaffMarkers($('#' + staff.id), staff.clef);
 		});
@@ -1446,6 +1475,7 @@ $(function(){
 	 * it, and is taken away again after a moment. */
 	var playedGhosts = {};   /* midi note -> the elements drawn for it */
 	var heldSounds = {};     /* midi note -> true while the key is down */
+	var heldOrder = [];      /* the same notes, in the order they went down */
 	var showPlayedNote = function(activeNote, sound, isCorrect){
 		var staff = staffs[activeNote.staff];
 		if (!staff || !staff.clef)
@@ -1512,15 +1542,25 @@ $(function(){
 		'major 3rd', 'fourth', 'tritone', 'fifth', 'minor 6th', 'major 6th',
 		'minor 7th', 'major 7th', 'octave'];
 	var CHORD_SHAPES = [
-		{steps: [0, 4, 7],      name: 'major'},
-		{steps: [0, 3, 7],      name: 'minor'},
-		{steps: [0, 3, 6],      name: 'diminished'},
-		{steps: [0, 4, 8],      name: 'augmented'},
-		{steps: [0, 5, 7],      name: 'suspended 4th'},
-		{steps: [0, 4, 7, 10],  name: 'dominant 7th'},
-		{steps: [0, 4, 7, 11],  name: 'major 7th'},
-		{steps: [0, 3, 7, 10],  name: 'minor 7th'},
-		{steps: [0, 3, 6, 9],   name: 'diminished 7th'}
+		{steps: [0, 4, 7],        name: 'major'},
+		{steps: [0, 3, 7],        name: 'minor'},
+		{steps: [0, 3, 6],        name: 'diminished'},
+		{steps: [0, 4, 8],        name: 'augmented'},
+		{steps: [0, 5, 7],        name: 'suspended 4th'},
+		{steps: [0, 2, 7],        name: 'suspended 2nd'},
+		{steps: [0, 4, 7, 9],     name: '6th'},
+		{steps: [0, 3, 7, 9],     name: 'minor 6th'},
+		{steps: [0, 4, 7, 10],    name: 'dominant 7th'},
+		{steps: [0, 4, 7, 11],    name: 'major 7th'},
+		{steps: [0, 3, 7, 10],    name: 'minor 7th'},
+		{steps: [0, 3, 7, 11],    name: 'minor/major 7th'},
+		{steps: [0, 3, 6, 10],    name: 'half-diminished 7th'},
+		{steps: [0, 3, 6, 9],     name: 'diminished 7th'},
+		{steps: [0, 2, 4, 7],     name: 'add9'},
+		{steps: [0, 2, 3, 7],     name: 'minor add9'},
+		{steps: [0, 2, 4, 7, 11], name: 'major 9th'},
+		{steps: [0, 2, 4, 7, 10], name: 'dominant 9th'},
+		{steps: [0, 2, 3, 7, 10], name: 'minor 9th'}
 	];
 	
 	/* MIDI number -> scientific octave, matching getSound(). */
@@ -1553,26 +1593,44 @@ $(function(){
 			return octaves + ' octaves';
 		return INTERVAL_NAMES[rest] + ' + ' + octaves + (octaves > 1 ? ' octaves' : ' octave');
 	};
-	var chordName = function(sounds){
-		/* Try each rotation as the root, so inversions are still recognised. */
+	var chordFromRoot = function(sounds, root){
+		var steps = sounds.map(function(s){
+			return (((s - root) % 12) + 12) % 12;
+		}).filter(function(v, i, arr){
+			return arr.indexOf(v) === i;
+		}).sort(function(a, b){ return a - b; });
+		
+		for (var c = 0; c < CHORD_SHAPES.length; c++)
+		{
+			var shape = CHORD_SHAPES[c];
+			if (shape.steps.length != steps.length)
+				continue;
+			if (shape.steps.every(function(v, i){ return v === steps[i]; }))
+				return nameForSound(root).replace(/-?\d+$/, '') + ' ' + shape.name;
+		}
+		return null;
+	};
+	/*
+	 * Name a chord. The note played FIRST is taken to be the root, which is what
+	 * lets a voicing keep its name: C-E-G spread across two hands, or with the
+	 * third on top, is still C major as long as you struck the C first.
+	 *
+	 * Only if the first note yields no known shape do we fall back to trying the
+	 * other notes as the root, so an unplanned voicing still gets named rather
+	 * than silently showing nothing.
+	 */
+	var chordName = function(sounds, root){
+		if (root !== undefined && root !== null)
+		{
+			var fromRoot = chordFromRoot(sounds, root);
+			if (fromRoot)
+				return fromRoot;
+		}
 		for (var r = 0; r < sounds.length; r++)
 		{
-			var root = sounds[r];
-			var steps = sounds.map(function(s){
-				return (((s - root) % 12) + 12) % 12;
-			}).filter(function(v, i, arr){
-				return arr.indexOf(v) === i;
-			}).sort(function(a, b){ return a - b; });
-			
-			for (var c = 0; c < CHORD_SHAPES.length; c++)
-			{
-				var shape = CHORD_SHAPES[c];
-				if (shape.steps.length != steps.length)
-					continue;
-				var same = shape.steps.every(function(v, i){ return v === steps[i]; });
-				if (same)
-					return nameForSound(root).replace(/-?\d+$/, '') + ' ' + shape.name;
-			}
+			var named = chordFromRoot(sounds, sounds[r]);
+			if (named)
+				return named;
 		}
 		return null;
 	};
@@ -1581,7 +1639,7 @@ $(function(){
 	 * what they add up to underneath — the interval for a pair, the chord for
 	 * three or more.
 	 */
-	var describeNotes = function(noteObjs){
+	var describeNotes = function(noteObjs, root){
 		var sounds = noteObjs.map(function(n){ return n.sound; })
 			.sort(function(a, b){ return a - b; });
 		var names = sounds.map(nameForSound);
@@ -1592,7 +1650,7 @@ $(function(){
 		if (sounds.length === 2)
 			return {primary: names.join('  '), secondary: intervalName(sounds[1] - sounds[0])};
 		
-		return {primary: names.join('  '), secondary: chordName(sounds) || ''};
+		return {primary: names.join('  '), secondary: chordName(sounds, root) || ''};
 	};
 	
 	/*
@@ -1637,7 +1695,8 @@ $(function(){
 			return;
 		}
 		
-		var described = describeNotes(held.map(function(s){ return {sound: s}; }));
+		/* heldOrder[0] is the note struck first, which names the chord. */
+		var described = describeNotes(held.map(function(s){ return {sound: s}; }), heldOrder[0]);
 		
 		var parts = ['<div class="htp-readout__primary">' + described.primary + '</div>'];
 		if (described.secondary)
@@ -1650,6 +1709,7 @@ $(function(){
 	 * leaving mid-chord — would otherwise stay held forever. */
 	$(window).on('blur', function(){
 		heldSounds = {};
+		heldOrder = [];
 		clearPlayedNotes();
 		updateReadout();
 	});
@@ -1717,12 +1777,17 @@ $(function(){
 	     * ghosts need every key-up, exercise or not. */
 	    if (type == 144 && velocity > 0)
 	    {
+	    	if (!heldSounds[note])
+	    		heldOrder.push(note);
 	    	heldSounds[note] = true;
 	    	noteEvent(note, true);
 	    }
 	    else if (type == 128 || type == 144)
 	    {
 	    	delete heldSounds[note];
+	    	var at = heldOrder.indexOf(note);
+	    	if (at !== -1)
+	    		heldOrder.splice(at, 1);
 	    	hidePlayedNote(note);
 	    	noteEvent(note, false);
 	    }
@@ -1825,6 +1890,7 @@ $(function(){
 		 */
 		window.HTP.notation = {
 			shiftSize: settings.shiftSize,
+			renderStaffLines: renderStaffLines,
 			clefs: clefs,
 			symbols: symbols,
 			/* How far apart two staff boxes must sit to be musically continuous,
@@ -1845,8 +1911,10 @@ $(function(){
 			ledgerLineCount: getNumberOfAdditionalLines,
 			renderStaffMarkers: renderStaffMarkers,
 			nameForSound: nameForSound,
-			describeSounds: function(sounds){
-				return describeNotes(sounds.map(function(s){ return {sound: s}; }));
+			/* `root` is the note struck first; it decides the chord name, so a
+			 * voicing keeps its identity. Omit it to search every rotation. */
+			describeSounds: function(sounds, root){
+				return describeNotes(sounds.map(function(s){ return {sound: s}; }), root);
 			},
 			/* Which of a pair of clefs should carry this pitch: the one whose
 			 * staff position is closest to the middle line. */
@@ -1870,6 +1938,8 @@ $(function(){
 			}
 		};
 	}
+	
+	$('.staff').each(function(){ renderStaffLines($(this)); });
 	
 	Object.keys(levels).forEach(function(l){
 		$('#level').append('<option value="' + l + '">' + levels[l].name + '</option>');
