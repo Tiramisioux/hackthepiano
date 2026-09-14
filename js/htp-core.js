@@ -233,6 +233,10 @@ window.HTP = (function (window, document) {
 		 * strange thing, and nothing is audible until the first key is pressed
 		 * anyway — which is the gesture that starts the audio. */
 		pianoSound: true,
+		/* Show a note on every clef that can carry it, rather than picking the
+		 * one it reads best on. Pointless while musicalClefDistance is on, since
+		 * that spaces the staves so both copies land in the same place. */
+		bothClefs: false,
 		/* Each clef can be hidden on its own. */
 		showClefTreble: true,
 		showClefBass: true,
