@@ -175,6 +175,7 @@
 		{ id: 'optLineMarkers',         setting: 'lineMarkers',         apply: 'applyLineMarkers' },
 		{ id: 'optColourKeys',          setting: 'colourKeys',          apply: null },
 		{ id: 'optKeyNames',            setting: 'keyNames',            apply: null },
+		{ id: 'optOctaveNumbers',       setting: 'octaveNumbers',       apply: null },
 		{ id: 'optLandmarkC',           setting: 'landmarkC',           apply: 'applyLineMarkers' },
 		{ id: 'optLandmarkF',           setting: 'landmarkF',           apply: 'applyLineMarkers' },
 		{ id: 'optLandmarkG',           setting: 'landmarkG',           apply: 'applyLineMarkers' }

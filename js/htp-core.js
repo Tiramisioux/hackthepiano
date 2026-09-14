@@ -230,6 +230,8 @@ window.HTP = (function (window, document) {
 		colourKeys: false,
 		showNoteNames: false,
 		keyNames: false,
+		/* Whether the note-name readout spells "C4" or just "C". */
+		octaveNumbers: true,
 		/* Staff size in px. Everything on a staff is sized in em off this, so it
 		 * scales the notation as a unit — clefs, noteheads, markers and spacing
 		 * alike. 75 is 1.5x the original stylesheet's 50. Being a px value it
