@@ -175,6 +175,7 @@
 		{ id: 'optLineMarkers',         setting: 'lineMarkers',         apply: 'applyLineMarkers' },
 		{ id: 'optColourKeys',          setting: 'colourKeys',          apply: null },
 		{ id: 'optColourNotes',         setting: 'colourNotes',         apply: 'applyNoteColours' },
+		{ id: 'optPianoSound',          setting: 'pianoSound',          apply: null },
 		{ id: 'optShowClefTreble',      setting: 'showClefTreble',      apply: null },
 		{ id: 'optShowClefBass',        setting: 'showClefBass',        apply: null },
 		{ id: 'optKeyNames',            setting: 'keyNames',            apply: null },

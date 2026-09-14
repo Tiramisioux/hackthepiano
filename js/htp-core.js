@@ -229,6 +229,10 @@ window.HTP = (function (window, document) {
 		lineMarkers: false,
 		colourKeys: false,
 		colourNotes: false,
+		/* Sound is on by default: an on-screen piano that makes no sound is a
+		 * strange thing, and nothing is audible until the first key is pressed
+		 * anyway — which is the gesture that starts the audio. */
+		pianoSound: true,
 		/* Each clef can be hidden on its own. */
 		showClefTreble: true,
 		showClefBass: true,

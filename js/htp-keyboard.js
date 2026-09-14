@@ -46,7 +46,10 @@
 
 	var keyElements = {};          /* midi note -> element           */
 	var activeNotes = {};          /* midi note -> refcount          */
-	var pointerHeld = null;
+	/* pointerId -> the note that pointer is currently holding. A map rather than
+	 * a single value because a touchscreen has as many pointers as fingers, and
+	 * a chord played with three of them is three simultaneous pointer streams. */
+	var pointerNotes = {};
 	var computerHeld = {};
 	var baseNote = 60;             /* C4, base of the computer octave */
 	var rangeIndex = DEFAULT_RANGE;
@@ -80,6 +83,7 @@
 		var range = RANGES[rangeIndex];
 		keysEl.innerHTML = '';
 		keyElements = {};
+		releaseAllPointers();
 		activeNotes = {};
 
 		var whiteNotes = [];
@@ -285,43 +289,63 @@
 		return null;
 	}
 
+	/* Let go of every finger at once — for losing the window, or rebuilding the
+	 * keys under whatever is still held. */
+	function releaseAllPointers() {
+		Object.keys(pointerNotes).forEach(function (id) {
+			release(pointerNotes[id]);
+			delete pointerNotes[id];
+		});
+	}
+
 	function bindPointer() {
 		keysEl.addEventListener('pointerdown', function (e) {
 			var note = noteFromEvent(e);
 			if (note === null) return;
 			e.preventDefault();
-			pointerHeld = note;
+
+			pointerNotes[e.pointerId] = note;
 			play(note);
+
+			/* Captured per pointer, so each finger keeps sending to us even once
+			 * it slides off the key it started on. */
 			if (keysEl.setPointerCapture) {
 				try { keysEl.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
 			}
 		});
 
 		keysEl.addEventListener('pointermove', function (e) {
-			if (pointerHeld === null) return;
+			var held = pointerNotes[e.pointerId];
+			if (held === undefined) return;
+
 			/* Pointer capture retargets events to keysEl, so hit-test manually. */
 			var under = document.elementFromPoint(e.clientX, e.clientY);
 			var raw = under && under.getAttribute && under.getAttribute('data-note');
 			if (raw === null || raw === undefined) return;
+
 			var note = parseInt(raw, 10);
-			if (note !== pointerHeld) {
-				release(pointerHeld);
-				pointerHeld = note;
+			if (note !== held) {
+				/* Slide one finger along the keys and it plays them in turn,
+				 * without disturbing any other finger. */
+				release(held);
+				pointerNotes[e.pointerId] = note;
 				play(note);
 			}
 		});
 
 		function endPointer(e) {
-			if (pointerHeld === null) return;
-			release(pointerHeld);
-			pointerHeld = null;
-			if (keysEl.releasePointerCapture && e && e.pointerId !== undefined) {
+			var held = pointerNotes[e.pointerId];
+			if (held === undefined) return;
+
+			release(held);
+			delete pointerNotes[e.pointerId];
+			if (keysEl.releasePointerCapture) {
 				try { keysEl.releasePointerCapture(e.pointerId); } catch (err) { /* ignore */ }
 			}
 		}
 		keysEl.addEventListener('pointerup', endPointer);
 		keysEl.addEventListener('pointercancel', endPointer);
-		window.addEventListener('blur', function () { endPointer(null); });
+		window.addEventListener('blur', releaseAllPointers);
 	}
 
 	function isTypingTarget(el) {
