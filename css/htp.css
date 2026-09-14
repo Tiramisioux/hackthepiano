@@ -144,6 +144,39 @@ div.staffsContainer {
 	padding: 0.5em 1em;
 	background: #fff;
 	border-bottom: 1px solid var(--htp-border);
+	/* A drawer: max-height animates where height:auto cannot. The cap is well
+	   clear of the two rows the options wrap to on a narrow window. */
+	max-height: 240px;
+	overflow: hidden;
+	transition: max-height 0.18s ease, padding 0.18s ease;
+}
+
+.htp-optionsbar[data-open="false"] {
+	max-height: 0;
+	padding-top: 0;
+	padding-bottom: 0;
+	border-bottom-width: 0;
+}
+
+/* The drawer handle, in the tab bar. Same chevron as the keyboard drawer. */
+.htp-iconbtn--drawer {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.4em;
+}
+
+.htp-drawer-chevron {
+	display: inline-block;
+	width: 0;
+	height: 0;
+	border-left: 5px solid transparent;
+	border-right: 5px solid transparent;
+	border-top: 6px solid currentColor;
+	transition: transform 0.15s ease;
+}
+
+.htp-iconbtn--drawer[aria-expanded="false"] .htp-drawer-chevron {
+	transform: rotate(180deg);
 }
 
 .htp-options {

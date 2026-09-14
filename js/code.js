@@ -1258,6 +1258,21 @@ $(function(){
 	var trainerStaffContainers = function(){
 		return $('#staff1').closest('.staffsContainer').find('.staffContainer');
 	};
+	/*
+	 * Show only the staves this level actually uses.
+	 *
+	 * index.html always contains two, but a level like Beginner 1 lists one, so
+	 * the other was drawn as an empty set of lines with no clef — which reads as
+	 * a second stave you are somehow meant to use. The original app had the same
+	 * quirk; it just showed less because the lines were fainter.
+	 */
+	var applyStaffVisibility = function(){
+		var used = state.level.staffs.map(function(staff){ return staff.id; });
+		trainerStaffContainers().each(function(){
+			var id = $('.staff', this).attr('id');
+			$(this).toggle(used.indexOf(id) !== -1);
+		});
+	};
 	var applyStaffSpacing = function(){
 		var containers = trainerStaffContainers();
 		containers.css('margin-top', '');
@@ -1999,6 +2014,7 @@ $(function(){
 		var paddingBottom = Math.max(0, -state.level.shiftFrom - 4) * settings.shiftSize;
 		
 		trainerStaffContainers().css({'padding-top': paddingTop+'em', 'padding-bottom': paddingBottom+'em'});
+		applyStaffVisibility();
 		
 		removeAllNotes();
 		updateResults();
