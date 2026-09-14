@@ -4,10 +4,25 @@ Learn to read notes on the fly. Play the note you see, as fast as you can.
 
 **Live:** https://tiramisioux.github.io/hackthepiano/
 
-> This is a fork of [wojciechmalota/hackthepiano](https://github.com/wojciechmalota/hackthepiano)
-> by Wojciech Małota-Wójcik. The original app and all of its music logic are his;
-> the original README follows below. This fork adds a module framework, an
-> on-screen keyboard, and extra difficulty levels.
+---
+
+### About this fork
+
+This is the **Tiramisioux fork** of
+[wojciechmalota/hackthepiano](https://github.com/wojciechmalota/hackthepiano) by
+Wojciech Małota-Wójcik. The app, and all of the music logic that makes it work,
+are his — his original README is reproduced in full at the bottom of this file,
+unchanged, under [Original README](#original-readme-by-wojciech-małota-wójcik).
+
+This fork adds a module framework with switchable panes, a full on-screen MIDI
+keyboard so you can use it without a piano attached, the C/F/G landmark markings
+from my piano-roll project, a free-practice mode, and a note/interval/chord readout. The original trainer is
+left intact and runs as the first module; the on-screen keyboard reaches it by
+presenting itself as an ordinary MIDI input port rather than by changing it.
+
+The fork's additions were built with [Claude Code](https://claude.com/claude-code).
+
+---
 
 ## What this fork adds
 
@@ -16,8 +31,7 @@ Learn to read notes on the fly. Play the note you see, as fast as you can.
   (`A`–`J` white notes, `W`/`E`/`T`/`Y`/`U` black, `Z`/`X` octave). It lights up
   the keys you play on a real MIDI piano too, and collapses out of the way.
   A **Range** control widens it from the C4 octave out to the full 88 keys.
-- **Landmark markings**, following the
-  [piano-roll](https://github.com/Tiramisioux/piano-roll) project. C, F and G are
+- **Landmark markings**, following my piano-roll project. C, F and G are
   the landmarks you navigate a staff by; parity decides the shape, so a landmark
   on a line gets a dashed rule and one in a space gets a filled band — the two can
   never collide. The same colours tint the piano keys, shaded by register: darker
@@ -84,7 +98,11 @@ it by presenting itself as a normal MIDI input port.
 
 ---
 
-## Original README
+## Original README (by Wojciech Małota-Wójcik)
+
+Everything below this line is the original project's README, reproduced
+unchanged. It describes the app as it was before this fork, and links to the
+original live site.
 
 Hi,
 
