@@ -226,24 +226,44 @@
 	 * runs from the button's own click handler. Prefixed names are still needed
 	 * for Safari.
 	 */
+	/*
+	 * WebKit has shipped three spellings of this API over the years and Safari
+	 * still answers to the older ones, so try each in turn rather than assuming
+	 * the unprefixed names exist.
+	 */
 	function fullscreenElement() {
-		return document.fullscreenElement || document.webkitFullscreenElement || null;
+		return document.fullscreenElement
+			|| document.webkitFullscreenElement
+			|| document.webkitCurrentFullScreenElement
+			|| null;
+	}
+
+	function fullscreenSupported() {
+		var root = document.documentElement;
+		return !!(root.requestFullscreen || root.webkitRequestFullscreen
+			|| root.webkitRequestFullScreen);
 	}
 
 	function toggleFullscreen() {
 		if (fullscreenElement()) {
-			var exit = document.exitFullscreen || document.webkitExitFullscreen;
+			var exit = document.exitFullscreen
+				|| document.webkitExitFullscreen
+				|| document.webkitCancelFullScreen;
 			if (exit) exit.call(document);
 			return;
 		}
+
 		var root = document.documentElement;
-		var request = root.requestFullscreen || root.webkitRequestFullscreen;
-		if (request) {
-			var result = request.call(root);
-			/* Chrome rejects the promise when the gesture is not trusted. */
-			if (result && result.catch)
-				result.catch(function (err) { console.warn('[HTP] full screen refused:', err); });
-		}
+		var request = root.requestFullscreen
+			|| root.webkitRequestFullscreen
+			|| root.webkitRequestFullScreen;
+		if (!request) return;
+
+		/* Only the unprefixed call returns a promise; the WebKit ones return
+		 * undefined and report failure through fullscreenerror instead. */
+		var result = request.call(root);
+		if (result && result.catch)
+			result.catch(function (err) { console.warn('[HTP] full screen refused:', err); });
 	}
 
 	function syncFullscreenButton() {
@@ -334,10 +354,15 @@
 
 		var fullscreenButton = document.getElementById('htpFullscreen');
 		if (fullscreenButton) {
-			fullscreenButton.addEventListener('click', toggleFullscreen);
-			document.addEventListener('fullscreenchange', syncFullscreenButton);
-			document.addEventListener('webkitfullscreenchange', syncFullscreenButton);
-			syncFullscreenButton();
+			if (fullscreenSupported()) {
+				fullscreenButton.addEventListener('click', toggleFullscreen);
+				document.addEventListener('fullscreenchange', syncFullscreenButton);
+				document.addEventListener('webkitfullscreenchange', syncFullscreenButton);
+				syncFullscreenButton();
+			} else {
+				/* Better an absent button than one that does nothing. */
+				fullscreenButton.hidden = true;
+			}
 		}
 
 		var optionsToggle = document.getElementById('htpOptionsToggle');
