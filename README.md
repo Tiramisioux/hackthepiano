@@ -67,8 +67,45 @@ Web MIDI only works in a secure context, so `http://localhost` works and opening
 node scripts/devserver.js
 ```
 
-Then open http://localhost:8123/ in Chrome, Edge or Opera. (Firefox and Safari
-do not expose the Web MIDI API, but the on-screen keyboard still works.)
+Then open http://localhost:8123/ — see Browser support below.
+
+## Browser support
+
+Only one feature depends on the browser: **reading a real MIDI piano**. That
+needs the Web MIDI API, which not every browser implements. Everything else —
+the on-screen keyboard, the computer-keyboard mapping, every module, the
+landmark markings, the readout — is ordinary DOM and works anywhere reasonably
+current.
+
+| | Real MIDI piano | Everything else |
+|---|---|---|
+| Chrome, Edge, Opera | Yes | Yes |
+| Firefox | Recent versions, behind a permission prompt | Yes |
+| Safari | No Web MIDI | Yes |
+
+Rather than trust that table, **let the app tell you**: the status line on the
+right of the keyboard drawer reports what it found — the name of your connected
+device, "No MIDI device", or "No Web MIDI in this browser". Browser support
+moves, and that line is measured rather than assumed.
+
+Two things to know:
+
+- **Web MIDI needs a secure context.** It works over `https://` and over
+  `http://localhost`, and not over `file://`. Opening `index.html` by
+  double-clicking it will never see your piano, however good the browser.
+- **The app degrades rather than breaks.** If Web MIDI is missing, or you decline
+  the permission prompt, or no device is plugged in, it carries on with the
+  on-screen keyboard instead of failing. `js/htp-core.js` presents that keyboard
+  to the rest of the app as an ordinary MIDI input port, so nothing downstream
+  has to care which it is.
+
+Your settings — staff size, landmark options, keyboard range, which drawers are
+open — are kept in `localStorage`, so they are per browser and per machine. In a
+private window they may not persist; the app falls back to its defaults rather
+than erroring.
+
+Beyond that it assumes a browser from roughly the last decade: ES6, CSS custom
+properties, flexbox and Pointer Events. There is no build step and no polyfills.
 
 ## Writing a new module
 
