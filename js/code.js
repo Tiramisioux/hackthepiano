@@ -1093,6 +1093,8 @@ $(function(){
 		state.activeNotes.splice(index, 1);
 	};
 	var removeAllNotes = function(){
+		if (typeof clearPlayedNotes === 'function')
+			clearPlayedNotes();
 		for (var i = state.activeNotes.length - 1; i >= 0; i--)
 			removeSymbolsSet(i);
 		state.noteIndex = 0;
@@ -1442,6 +1444,8 @@ $(function(){
 	 * wrong answer shows the interval you missed by instead of just vanishing.
 	 * The ghost is appended to the target note's own symbol, so it travels with
 	 * it, and is taken away again after a moment. */
+	var playedGhosts = {};   /* midi note -> the elements drawn for it */
+	var heldSounds = {};     /* midi note -> true while the key is down */
 	var showPlayedNote = function(activeNote, sound, isCorrect){
 		var staff = staffs[activeNote.staff];
 		if (!staff || !staff.clef)
@@ -1481,9 +1485,19 @@ $(function(){
 			}
 		}
 		
-		setTimeout(function(){
-			added.forEach(function(el){ el.remove(); });
-		}, 1400);
+		/* The ghost stays for exactly as long as the key is held — hidePlayedNote()
+		 * takes it away on note-off. */
+		hidePlayedNote(sound);
+		playedGhosts[sound] = added;
+	};
+	var hidePlayedNote = function(sound){
+		if (!playedGhosts[sound])
+			return;
+		playedGhosts[sound].forEach(function(el){ el.remove(); });
+		delete playedGhosts[sound];
+	};
+	var clearPlayedNotes = function(){
+		Object.keys(playedGhosts).forEach(hidePlayedNote);
 	};
 	
 	/* ---------------------------------------------------------------------
@@ -1602,7 +1616,6 @@ $(function(){
 		return {glyph: glyph, shift: shiftInClef, entry: entry};
 	};
 	
-	var lastPlayed = null;
 	var updateReadout = function(){
 		var el = $('#htpReadout');
 		if (!el.length)
@@ -1614,26 +1627,32 @@ $(function(){
 			return;
 		}
 		
-		var parts = [];
-		var index = findFirstNoteIndex();
-		if (index !== null && state.activeNotes[index].notes && state.activeNotes[index].notes.length)
+		/* This names what YOU are playing, never the note you are being asked for —
+		 * naming the target would give the exercise away. It stays on screen for
+		 * exactly as long as the keys are held. */
+		var held = Object.keys(heldSounds).map(Number).sort(function(a, b){ return a - b; });
+		if (!held.length)
 		{
-			var described = describeNotes(state.activeNotes[index].notes);
-			parts.push('<div class="htp-readout__primary">' + described.primary + '</div>');
-			if (described.secondary)
-				parts.push('<div class="htp-readout__secondary">' + described.secondary + '</div>');
+			el.empty();
+			return;
 		}
 		
-		if (lastPlayed && (new Date().getTime() - lastPlayed.at) < 1400)
-		{
-			parts.push('<div class="htp-readout__played htp-readout__played--'
-				+ (lastPlayed.correct ? 'correct' : 'wrong') + '">you played '
-				+ nameForSound(lastPlayed.sound) + '</div>');
-		}
+		var described = describeNotes(held.map(function(s){ return {sound: s}; }));
 		
+		var parts = ['<div class="htp-readout__primary">' + described.primary + '</div>'];
+		if (described.secondary)
+			parts.push('<div class="htp-readout__secondary">' + described.secondary + '</div>');
 		el.html(parts.join(''));
 	};
 	setInterval(updateReadout, 120);
+	
+	/* A note-on whose note-off never arrives — a lost MIDI message, or focus
+	 * leaving mid-chord — would otherwise stay held forever. */
+	$(window).on('blur', function(){
+		heldSounds = {};
+		clearPlayedNotes();
+		updateReadout();
+	});
 	var noteEvent = function(note, isOn){
 		var activeNoteIndex = findFirstNoteIndex();
 		if (activeNoteIndex === null)
@@ -1647,7 +1666,6 @@ $(function(){
 		if (isOn)
 		{
 			showPlayedNote(activeNote, note, matched);
-			lastPlayed = {sound: note, correct: matched, at: new Date().getTime()};
 
 			var notActiveNotes = activeNote.notes.filter(function(n){
 				return !n.isActive;
@@ -1694,10 +1712,20 @@ $(function(){
 			eventAction: type
 		});
 	    
-	    if (type == 144)
-	    	noteEvent(note, velocity > 0);
-	    else if (type == 128)
+	    /* Track what is held here rather than in noteEvent(), which returns early
+	     * when there is no playable note to answer. The readout and the staff
+	     * ghosts need every key-up, exercise or not. */
+	    if (type == 144 && velocity > 0)
+	    {
+	    	heldSounds[note] = true;
+	    	noteEvent(note, true);
+	    }
+	    else if (type == 128 || type == 144)
+	    {
+	    	delete heldSounds[note];
+	    	hidePlayedNote(note);
 	    	noteEvent(note, false);
+	    }
 	};
 	var onMIDISuccess = function(midiAccess){
 		ga('send', {

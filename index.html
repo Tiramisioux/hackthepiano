@@ -36,7 +36,7 @@
   	   		<label title="Space the staves by the true pitch distance between their clefs instead of the wider gap sheet music conventionally engraves">
   	   			<input type="checkbox" id="optMusicalClefDistance"> Musical clef distance
   	   		</label>
-  	   		<label title="Name the note being asked for — or the interval for two notes, the chord for three or more">
+  	   		<label title="Name the notes you play — the interval for two, the chord for three or more">
   	   			<input type="checkbox" id="optShowNoteNames"> Note names
   	   		</label>
   	   		<label title="Mark the landmarks on the staff — a dashed rule where one falls on a line, a filled band where one falls in a space">
@@ -48,6 +48,12 @@
   	   		<label title="Print F and G key names on the keyboard too, the way C1, C2 … always are">
   	   			<input type="checkbox" id="optKeyNames"> Key names
   	   		</label>
+  	   		<span class="htp-options__group">
+  	   			<span class="htp-options__grouplabel">Staff</span>
+  	   			<button type="button" class="htp-keyboard__btn" id="optStaffSmaller" title="Smaller staff">&minus;</button>
+  	   			<span class="htp-options__value" id="optStaffSize">50</span>
+  	   			<button type="button" class="htp-keyboard__btn" id="optStaffBigger" title="Larger staff">+</button>
+  	   		</span>
   	   		<span class="htp-options__group">
   	   			<span class="htp-options__grouplabel">Landmarks</span>
   	   			<label title="Show the C landmarks on the staff and on the keys"><input type="checkbox" id="optLandmarkC"> C</label>

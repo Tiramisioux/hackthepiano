@@ -158,6 +158,73 @@
 		catch (e) { return 'single'; }
 	}
 
+	/* --------------------------------------------------------------- options */
+
+	/*
+	 * The option controls are app chrome, not trainer chrome: they drive the
+	 * staff markings, the notation size and the keyboard, so they live here and
+	 * keep their state as you move between panes.
+	 *
+	 * Each checkbox is bound to one HTP setting, plus the js/code.js function
+	 * that re-renders after it changes. js/code.js publishes those as
+	 * HTP.applyStaffSpacing / HTP.applyLineMarkers once it has run.
+	 */
+	var OPTIONS = [
+		{ id: 'optMusicalClefDistance', setting: 'musicalClefDistance', apply: 'applyStaffSpacing' },
+		{ id: 'optShowNoteNames',       setting: 'showNoteNames',       apply: null },
+		{ id: 'optLineMarkers',         setting: 'lineMarkers',         apply: 'applyLineMarkers' },
+		{ id: 'optColourKeys',          setting: 'colourKeys',          apply: null },
+		{ id: 'optKeyNames',            setting: 'keyNames',            apply: null },
+		{ id: 'optLandmarkC',           setting: 'landmarkC',           apply: 'applyLineMarkers' },
+		{ id: 'optLandmarkF',           setting: 'landmarkF',           apply: 'applyLineMarkers' },
+		{ id: 'optLandmarkG',           setting: 'landmarkG',           apply: 'applyLineMarkers' }
+	];
+
+	var STAFF_SIZE_MIN = 24;
+	var STAFF_SIZE_MAX = 110;
+	var STAFF_SIZE_STEP = 6;
+
+	function applyStaffSize() {
+		var size = window.HTP.settings.staffSize;
+		document.documentElement.style.setProperty('--htp-staff-size', size + 'px');
+		var label = document.getElementById('optStaffSize');
+		if (label) label.textContent = String(size);
+	}
+
+	function nudgeStaffSize(delta) {
+		var next = Math.max(STAFF_SIZE_MIN,
+			Math.min(STAFF_SIZE_MAX, window.HTP.settings.staffSize + delta));
+		window.HTP.setSetting('staffSize', next);
+		applyStaffSize();
+		/* The staff geometry moved, so anything positioned against it redraws. */
+		if (typeof window.HTP.applyStaffSpacing === 'function') window.HTP.applyStaffSpacing();
+		if (typeof window.HTP.applyLineMarkers === 'function') window.HTP.applyLineMarkers();
+	}
+
+	function bindOptions() {
+		OPTIONS.forEach(function (option) {
+			var input = document.getElementById(option.id);
+			if (!input) return;
+			input.checked = !!window.HTP.settings[option.setting];
+			input.addEventListener('change', function () {
+				window.HTP.setSetting(option.setting, input.checked);
+				if (option.apply && typeof window.HTP[option.apply] === 'function')
+					window.HTP[option.apply]();
+			});
+		});
+
+		var smaller = document.getElementById('optStaffSmaller');
+		var bigger = document.getElementById('optStaffBigger');
+		if (smaller) smaller.addEventListener('click', function () { nudgeStaffSize(-STAFF_SIZE_STEP); });
+		if (bigger) bigger.addEventListener('click', function () { nudgeStaffSize(STAFF_SIZE_STEP); });
+		applyStaffSize();
+
+		/* js/code.js has already drawn the first clef by now, so re-apply
+		 * whatever was restored from a previous visit. */
+		if (typeof window.HTP.applyStaffSpacing === 'function') window.HTP.applyStaffSpacing();
+		if (typeof window.HTP.applyLineMarkers === 'function') window.HTP.applyLineMarkers();
+	}
+
 	/* ----------------------------------------------------------------- boot */
 
 	$(function () {
@@ -168,6 +235,8 @@
 			console.error('[HTP] pane shell markup missing from index.html');
 			return;
 		}
+
+		bindOptions();
 
 		var modules = window.HTP.modules();
 		if (!modules.length) {

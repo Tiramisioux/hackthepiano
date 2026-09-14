@@ -126,7 +126,13 @@ body:not(.htp-multi-module) .htp-tabbar { display: none; }
    Inside a pane, with extra option checkboxes below them, they are better in
    normal flow — then they can never overlap the staff. */
 div.buttonsContainer { position: static; padding: 0.75em 1em 0; }
-div.staffsContainer { margin-top: 0.8em; }
+/* The whole staff — clefs, noteheads, markers, spacing — is sized in em off
+   this one value, so changing it zooms the notation as a unit. Set from
+   js/htp-panes.js; browser zoom still applies on top of it. */
+div.staffsContainer {
+	font-size: var(--htp-staff-size, 50px);
+	margin-top: 0.8em;
+}
 
 .htp-panes[data-layout="split"] div.staffsContainer { margin-top: 0.4em; }
 
@@ -458,4 +464,10 @@ div.staff div.symbol.note.htp-free-note {
 	left: 2.6em;
 	width: 2.4em;
 	overflow: visible;
+}
+
+.htp-options__value {
+	min-width: 2em;
+	text-align: center;
+	color: var(--htp-ink);
 }

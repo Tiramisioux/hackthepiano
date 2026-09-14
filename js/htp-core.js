@@ -230,6 +230,9 @@ window.HTP = (function (window, document) {
 		colourKeys: false,
 		showNoteNames: false,
 		keyNames: false,
+		/* Staff size in px. Everything on a staff is sized in em off this, so it
+		 * scales the notation — clefs, noteheads, markers and spacing alike. */
+		staffSize: 50,
 		/* Which landmarks are drawn, on the staff and on the keys alike. */
 		landmarkC: true,
 		landmarkF: true,
