@@ -569,6 +569,18 @@ div.staff div.symbol.note.htp-free-note svg.line {
 	width: 0.464em;
 }
 
+/*
+ * The original stylesheet clips a note symbol to its own box, which the trainer
+ * needs — its boxes are measured to fit and its notes scroll in from the edge of
+ * the staff. Here the box is a fixed width and the note is parked in the middle,
+ * so the clip has nothing useful to do and everything to lose: the ledger line
+ * sits flush against the right edge, where clipping shaves its last pixel and
+ * the note reads as cropped.
+ */
+div.staff div.symbol.note.htp-free-note {
+	overflow: visible;
+}
+
 /* --------------------------------------------------------------- staff lines */
 
 /*

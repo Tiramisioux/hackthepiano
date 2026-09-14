@@ -55,6 +55,24 @@
 	}
 
 	/*
+	 * Ask iOS for a playback audio session.
+	 *
+	 * iOS decides whether a page's sound obeys the physical ring/silent switch
+	 * from the page's audio session type. Web Audio defaults to "ambient", which
+	 * the switch silences outright — so an iPhone set to silent plays nothing at
+	 * all, with no error and a perfectly healthy AudioContext. "playback" is the
+	 * category media players use, and it ignores the switch.
+	 *
+	 * Safari 16.4 and later; a no-op everywhere else, so it costs nothing to ask.
+	 */
+	function claimPlaybackSession() {
+		try {
+			if (navigator.audioSession && 'type' in navigator.audioSession)
+				navigator.audioSession.type = 'playback';
+		} catch (e) { /* not supported — the silent switch wins */ }
+	}
+
+	/*
 	 * Built on first use, never before: browsers refuse to start audio outside a
 	 * user gesture, and the first note played is always inside one.
 	 */
@@ -69,6 +87,10 @@
 
 		var Ctor = window.AudioContext || window.webkitAudioContext;
 		if (!Ctor) return null;
+
+		/* Before the context exists, so the session type is set for its whole
+		 * life rather than applied to one already running. */
+		claimPlaybackSession();
 
 		try {
 			ctx = new Ctor();
@@ -232,6 +254,10 @@
 			enabled: enabled,
 			/* Whether this browser can make sound at all, for the UI to reflect. */
 			supported: !!(window.AudioContext || window.webkitAudioContext),
+			/* What iOS thinks this page is, for diagnosing a silent iPhone. */
+			sessionType: function () {
+				return (navigator.audioSession && navigator.audioSession.type) || 'unsupported';
+			},
 			/* Diagnostics. state() is the AudioContext's own — 'running' once a
 			 * gesture has unlocked it, 'suspended' before that. */
 			state: function () { return ctx ? ctx.state : 'none'; },
