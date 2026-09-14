@@ -53,7 +53,7 @@ The fork's additions were built with [Claude Code](https://claude.com/claude-cod
   as one chord.
 - **A MIDI monitor module**, which doubles as the reference implementation for
   writing a new module.
-- Alto and tenor clefs, and interval/chord levels (beta).
+- Interval and chord levels (beta).
 
 No build step, no dependencies, no package.json. It is still a static site you
 can open from any web server.
