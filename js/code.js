@@ -1093,6 +1093,8 @@ $(function(){
 		state.activeNotes.splice(index, 1);
 	};
 	var removeAllNotes = function(){
+		if (typeof clearPlayedNotes === 'function')
+			clearPlayedNotes();
 		for (var i = state.activeNotes.length - 1; i >= 0; i--)
 			removeSymbolsSet(i);
 		state.noteIndex = 0;
@@ -1120,6 +1122,118 @@ $(function(){
 			note.width = 100 * note.symbol.outerWidth();
 			state.activeNotes.push(note);
 		}, 10);
+	};
+	/* Optional: space the two staves by the true musical interval between their
+	 * clefs instead of the wider gap sheet music conventionally engraves.
+	 *
+	 * For a given pitch, its staff position in clef c is noteShift + clefs[c].shift
+	 * (see getClefsForNote). So two staves become one continuous pitch space when
+	 * their boxes are offset by exactly (shiftB - shiftA) * shiftSize em. Each
+	 * .staffContainer is one .staff tall (2em), so the correction is that offset
+	 * minus 2em, applied as a negative margin on the lower container.
+	 *
+	 * Only meaningful when the two staves carry different clefs — two treble
+	 * staves are independent lines, not a grand staff. */
+	/* Landmark line markers, following the piano-roll project's design.
+	 *
+	 * C, F and G are the landmarks you navigate a staff by. Parity does the
+	 * work: on any staff an even `shift` is a line and an odd one is a space,
+	 * so each landmark is one or the other and the two can never collide.
+	 *   - a landmark on a line  -> a dashed rule along it
+	 *   - a landmark in a space -> a filled band covering that space
+	 *
+	 * Vertical geometry comes from the staff-line background SVG: its viewBox is
+	 * "0 -470 10 1066.201" mapped onto the 2em tall .staff box, with staff lines
+	 * at svg y = -60 * shift. So a given shift sits at
+	 *     top = (940 - 120 * shift) / 1066.201  em
+	 * which works out at settings.shiftSize per step, as everywhere else. */
+	var MARKER_SHIFT_TOP = 7;      /* highest shift still inside the .staff box */
+	var MARKER_SHIFT_BOTTOM = -9;  /* lowest  shift still inside the .staff box */
+	var markerTopEm = function(shift){
+		return (940 - 120 * shift) / 1066.201;
+	};
+	/* Draw the landmark layer into one staff element for one clef. Shared by the
+	 * trainer and by any module that renders its own staves. */
+	var renderStaffMarkers = function(staffEl, clefId){
+		$('> .htp-markers', staffEl).remove();
+		
+		if (!window.HTP || !window.HTP.settings || !window.HTP.settings.lineMarkers)
+			return;
+		if (!clefId || !clefs[clefId])
+			return;
+		
+		var landmarks = window.HTP.landmarks;
+		{
+			var clefShift = clefs[clefId].shift;
+			var layer = $('<div class="htp-markers"></div>');
+			
+			for (var shift = MARKER_SHIFT_BOTTOM; shift <= MARKER_SHIFT_TOP; shift++)
+			{
+				/* Diatonic step and octave of this staff position. C4 is noteShift -6,
+				 * and one octave is 7 diatonic steps. */
+				var noteShift = shift - clefShift;
+				var step = (((noteShift + 6) % 7) + 7) % 7;
+				var octave = 4 + Math.floor((noteShift + 6) / 7);
+				
+				var landmark = null;
+				Object.keys(landmarks).forEach(function(name){
+					if (landmarks[name].step == step && window.HTP.landmarkEnabled(name))
+						landmark = landmarks[name];
+				});
+				if (!landmark)
+					continue;
+				
+				/* Same register shading as the keyboard: darker below middle C,
+				 * brighter above it, palette colour in the middle octave. */
+				var colour = window.HTP.shade(landmark.colour, window.HTP.octaveShade(octave));
+				
+				if (shift % 2 == 0)
+				{
+					/* On a line: a dashed rule along it. */
+					$('<div class="htp-marker htp-marker--rule"></div>')
+						.css({top: markerTopEm(shift) + 'em', color: colour})
+						.appendTo(layer);
+				}
+				else
+				{
+					/* In a space: a band filling it line to line. */
+					$('<div class="htp-marker htp-marker--band"></div>')
+						.css({
+							top: markerTopEm(shift + 1) + 'em',
+							height: (markerTopEm(shift - 1) - markerTopEm(shift + 1)) + 'em',
+							'background-color': colour
+						})
+						.appendTo(layer);
+				}
+			}
+			
+			staffEl.prepend(layer);
+		}
+	};
+	var applyLineMarkers = function(){
+		state.level.staffs.forEach(function(staff){
+			renderStaffMarkers($('#' + staff.id), staff.clef);
+		});
+		/* Let modules that render their own staves redraw theirs too. */
+		if (window.HTP && typeof window.HTP.notifyMarkersChanged === 'function')
+			window.HTP.notifyMarkersChanged();
+	};
+	var applyStaffSpacing = function(){
+		var containers = $('.staffContainer');
+		containers.css('margin-top', '');
+		
+		if (!window.HTP || !window.HTP.settings || !window.HTP.settings.musicalClefDistance)
+			return;
+		if (state.level.staffs.length < 2)
+			return;
+		
+		var upper = state.level.staffs[0];
+		var lower = state.level.staffs[1];
+		if (!upper.clef || !lower.clef || upper.clef == lower.clef)
+			return;
+		
+		var deltaShift = clefs[lower.clef].shift - clefs[upper.clef].shift;
+		containers.eq(1).css('margin-top', ((deltaShift * settings.shiftSize) - 2) + 'em');
 	};
 	var setClefs = function(){
 		var clefSet = getRandomArrayEl(state.level.clefSets);
@@ -1152,6 +1266,9 @@ $(function(){
 			
 			addSymbol(staffEl, {type: symbolTypes.clef, symbol: symbol, position: startPosition, staff: staff.id});
 		});
+		
+		applyStaffSpacing();
+		applyLineMarkers();
 		
 		return true;
 	};
@@ -1321,7 +1438,221 @@ $(function(){
 			stats.numberOfWrongAnswers++;
 			updateResults();
 		}
+		return found;
 	};
+	/* Draw the note that was actually played on top of the target note, so a
+	 * wrong answer shows the interval you missed by instead of just vanishing.
+	 * The ghost is appended to the target note's own symbol, so it travels with
+	 * it, and is taken away again after a moment. */
+	var playedGhosts = {};   /* midi note -> the elements drawn for it */
+	var heldSounds = {};     /* midi note -> true while the key is down */
+	var showPlayedNote = function(activeNote, sound, isCorrect){
+		var staff = staffs[activeNote.staff];
+		if (!staff || !staff.clef)
+			return;
+		
+		var clef = clefs[staff.clef];
+		var entry = spellingForSound(sound);
+		if (!entry)
+			return;
+		
+		var shiftInClef = entry.clefs[clef.id].shift;
+		var added = [];
+		var ghost = $(glyphForDecorator(entry.decorator))
+			.addClass('played')
+			.addClass(isCorrect ? 'correct' : 'wrong')
+			.css({top: (-shiftInClef * settings.shiftSize)+'em'});
+		activeNote.symbol.append(ghost);
+		added.push(ghost);
+		
+		/* Ledger lines, so a note just outside the staff is still readable. Capped,
+		 * because a note several octaves off would otherwise fill the staff with
+		 * lines and hide the target. */
+		var extra = getNumberOfAdditionalLines(shiftInClef);
+		if (extra > 3) extra = 3;
+		if (extra < -3) extra = -3;
+		if (extra)
+		{
+			var sign = extra > 0 ? 1 : -1;
+			for (var i = Math.abs(extra) + 2; i >= 3; i--)
+			{
+				var lineEl = $(symbols.line)
+					.addClass('line played')
+					.addClass(isCorrect ? 'correct' : 'wrong')
+					.css({top: (-sign * 2 * i * settings.shiftSize)+'em'});
+				activeNote.symbol.append(lineEl);
+				added.push(lineEl);
+			}
+		}
+		
+		/* The ghost stays for exactly as long as the key is held — hidePlayedNote()
+		 * takes it away on note-off. */
+		hidePlayedNote(sound);
+		playedGhosts[sound] = added;
+	};
+	var hidePlayedNote = function(sound){
+		if (!playedGhosts[sound])
+			return;
+		playedGhosts[sound].forEach(function(el){ el.remove(); });
+		delete playedGhosts[sound];
+	};
+	var clearPlayedNotes = function(){
+		Object.keys(playedGhosts).forEach(hidePlayedNote);
+	};
+	
+	/* ---------------------------------------------------------------------
+	 * Note / interval / chord readout
+	 *
+	 * With the "Show note names" option on, the staff is captioned with what is
+	 * currently being asked for: a single note by name, two notes by the
+	 * interval between them, three or more by the chord they spell. Playing a
+	 * note also reports what you actually played.
+	 * ------------------------------------------------------------------- */
+	var INTERVAL_NAMES = ['unison', 'minor 2nd', 'major 2nd', 'minor 3rd',
+		'major 3rd', 'fourth', 'tritone', 'fifth', 'minor 6th', 'major 6th',
+		'minor 7th', 'major 7th', 'octave'];
+	var CHORD_SHAPES = [
+		{steps: [0, 4, 7],      name: 'major'},
+		{steps: [0, 3, 7],      name: 'minor'},
+		{steps: [0, 3, 6],      name: 'diminished'},
+		{steps: [0, 4, 8],      name: 'augmented'},
+		{steps: [0, 5, 7],      name: 'suspended 4th'},
+		{steps: [0, 4, 7, 10],  name: 'dominant 7th'},
+		{steps: [0, 4, 7, 11],  name: 'major 7th'},
+		{steps: [0, 3, 7, 10],  name: 'minor 7th'},
+		{steps: [0, 3, 6, 9],   name: 'diminished 7th'}
+	];
+	
+	/* MIDI number -> scientific octave, matching getSound(). */
+	var soundOctave = function(sound){
+		return Math.floor(sound / 12) - 1;
+	};
+	/* Pick how to spell a pitch: follow the key signature where possible, but
+	 * skip entries getName() has no name for — the note table carries enharmonic
+	 * spellings such as F-as-Eis and B-as-Ces that it never names. */
+	var spellingForSound = function(sound){
+		var preferred = state.activeKey ? state.activeKey.decorator : decorators.sharp;
+		var candidates = notes.filter(function(n){ return n.sound == sound; });
+		if (!candidates.length)
+			return null;
+		return candidates.filter(function(n){ return n.decorator == preferred && n.name; })[0]
+			|| candidates.filter(function(n){ return n.name; })[0]
+			|| candidates[0];
+	};
+	var nameForSound = function(sound){
+		var entry = spellingForSound(sound);
+		return (entry && entry.name) ? (entry.name + soundOctave(sound)) : '?';
+	};
+	var intervalName = function(semitones){
+		var span = Math.abs(semitones);
+		if (span <= 12)
+			return INTERVAL_NAMES[span];
+		var octaves = Math.floor(span / 12);
+		var rest = span % 12;
+		if (!rest)
+			return octaves + ' octaves';
+		return INTERVAL_NAMES[rest] + ' + ' + octaves + (octaves > 1 ? ' octaves' : ' octave');
+	};
+	var chordName = function(sounds){
+		/* Try each rotation as the root, so inversions are still recognised. */
+		for (var r = 0; r < sounds.length; r++)
+		{
+			var root = sounds[r];
+			var steps = sounds.map(function(s){
+				return (((s - root) % 12) + 12) % 12;
+			}).filter(function(v, i, arr){
+				return arr.indexOf(v) === i;
+			}).sort(function(a, b){ return a - b; });
+			
+			for (var c = 0; c < CHORD_SHAPES.length; c++)
+			{
+				var shape = CHORD_SHAPES[c];
+				if (shape.steps.length != steps.length)
+					continue;
+				var same = shape.steps.every(function(v, i){ return v === steps[i]; });
+				if (same)
+					return nameForSound(root).replace(/-?\d+$/, '') + ' ' + shape.name;
+			}
+		}
+		return null;
+	};
+	/*
+	 * Describe a set of notes as two lines: the names themselves, large, and
+	 * what they add up to underneath — the interval for a pair, the chord for
+	 * three or more.
+	 */
+	var describeNotes = function(noteObjs){
+		var sounds = noteObjs.map(function(n){ return n.sound; })
+			.sort(function(a, b){ return a - b; });
+		var names = sounds.map(nameForSound);
+		
+		if (sounds.length <= 1)
+			return {primary: names.join(''), secondary: ''};
+		
+		if (sounds.length === 2)
+			return {primary: names.join('  '), secondary: intervalName(sounds[1] - sounds[0])};
+		
+		return {primary: names.join('  '), secondary: chordName(sounds) || ''};
+	};
+	
+	/*
+	 * Build a notehead for one pitch in one clef, ready to drop into a .staff.
+	 * Returns null for a pitch the note table cannot spell.
+	 */
+	/* A natural sign only earns its place when it cancels a key signature. On a
+	 * played-note readout it is noise, so a natural draws as a bare notehead —
+	 * sharps and flats keep their accidental, which is what tells them apart. */
+	var glyphForDecorator = function(decorator){
+		return decorator == decorators.natural ? symbols.notes.none : symbols.notes[decorator];
+	};
+	var buildNoteGlyph = function(clefId, sound){
+		var entry = spellingForSound(sound);
+		if (!entry || !clefs[clefId])
+			return null;
+		
+		var shiftInClef = entry.clefs[clefId].shift;
+		var glyph = $(glyphForDecorator(entry.decorator))
+			.css({top: (-shiftInClef * settings.shiftSize) + 'em'});
+		return {glyph: glyph, shift: shiftInClef, entry: entry};
+	};
+	
+	var updateReadout = function(){
+		var el = $('#htpReadout');
+		if (!el.length)
+			return;
+		
+		if (!window.HTP || !window.HTP.settings || !window.HTP.settings.showNoteNames)
+		{
+			el.empty();
+			return;
+		}
+		
+		/* This names what YOU are playing, never the note you are being asked for —
+		 * naming the target would give the exercise away. It stays on screen for
+		 * exactly as long as the keys are held. */
+		var held = Object.keys(heldSounds).map(Number).sort(function(a, b){ return a - b; });
+		if (!held.length)
+		{
+			el.empty();
+			return;
+		}
+		
+		var described = describeNotes(held.map(function(s){ return {sound: s}; }));
+		
+		var parts = ['<div class="htp-readout__primary">' + described.primary + '</div>'];
+		if (described.secondary)
+			parts.push('<div class="htp-readout__secondary">' + described.secondary + '</div>');
+		el.html(parts.join(''));
+	};
+	setInterval(updateReadout, 120);
+	
+	/* A note-on whose note-off never arrives — a lost MIDI message, or focus
+	 * leaving mid-chord — would otherwise stay held forever. */
+	$(window).on('blur', function(){
+		heldSounds = {};
+		clearPlayedNotes();
+		updateReadout();
+	});
 	var noteEvent = function(note, isOn){
 		var activeNoteIndex = findFirstNoteIndex();
 		if (activeNoteIndex === null)
@@ -1331,9 +1662,11 @@ $(function(){
 		if (!activeNote.playable)
 			return;
 		
-		noteSetActive(activeNote, note, isOn);
+		var matched = noteSetActive(activeNote, note, isOn);
 		if (isOn)
 		{
+			showPlayedNote(activeNote, note, matched);
+
 			var notActiveNotes = activeNote.notes.filter(function(n){
 				return !n.isActive;
 			});
@@ -1379,10 +1712,20 @@ $(function(){
 			eventAction: type
 		});
 	    
-	    if (type == 144)
-	    	noteEvent(note, velocity > 0);
-	    else if (type == 128)
+	    /* Track what is held here rather than in noteEvent(), which returns early
+	     * when there is no playable note to answer. The readout and the staff
+	     * ghosts need every key-up, exercise or not. */
+	    if (type == 144 && velocity > 0)
+	    {
+	    	heldSounds[note] = true;
+	    	noteEvent(note, true);
+	    }
+	    else if (type == 128 || type == 144)
+	    {
+	    	delete heldSounds[note];
+	    	hidePlayedNote(note);
 	    	noteEvent(note, false);
+	    }
 	};
 	var onMIDISuccess = function(midiAccess){
 		ga('send', {
@@ -1469,6 +1812,65 @@ $(function(){
 		});
 	};
 
+	/* Let the module shell re-apply staff spacing when its checkbox changes. */
+	if (window.HTP)
+	{
+		window.HTP.applyStaffSpacing = applyStaffSpacing;
+		window.HTP.applyLineMarkers = applyLineMarkers;
+		
+		/*
+		 * Notation primitives for modules that draw their own staves — see
+		 * js/modules/free-practice.js. Everything here is read-only apart from
+		 * the render helpers, which only touch the element you hand them.
+		 */
+		window.HTP.notation = {
+			shiftSize: settings.shiftSize,
+			clefs: clefs,
+			symbols: symbols,
+			/* How far apart two staff boxes must sit to be musically continuous,
+			 * expressed as the margin correction on the lower one. */
+			staffOffsetEm: function(upperClefId, lowerClefId){
+				if (!clefs[upperClefId] || !clefs[lowerClefId])
+					return 0;
+				return (clefs[lowerClefId].shift - clefs[upperClefId].shift) * settings.shiftSize - 2;
+			},
+			buildNoteGlyph: buildNoteGlyph,
+			buildClefSymbol: function(clefId){
+				if (!clefs[clefId])
+					return null;
+				return $('<div class="symbol clef ' + clefId + '"></div>')
+					.append(symbols.clefs[clefId]);
+			},
+			addLedgerLines: addAdditionalLines,
+			ledgerLineCount: getNumberOfAdditionalLines,
+			renderStaffMarkers: renderStaffMarkers,
+			nameForSound: nameForSound,
+			describeSounds: function(sounds){
+				return describeNotes(sounds.map(function(s){ return {sound: s}; }));
+			},
+			/* Which of a pair of clefs should carry this pitch: the one whose
+			 * staff position is closest to the middle line. */
+			bestClef: function(sound, clefIds){
+				var entry = spellingForSound(sound);
+				if (!entry)
+					return clefIds[0];
+				var best = clefIds[0];
+				var bestDistance = Infinity;
+				clefIds.forEach(function(id){
+					if (!entry.clefs[id])
+						return;
+					var distance = Math.abs(entry.clefs[id].shift);
+					if (distance < bestDistance)
+					{
+						bestDistance = distance;
+						best = id;
+					}
+				});
+				return best;
+			}
+		};
+	}
+	
 	Object.keys(levels).forEach(function(l){
 		$('#level').append('<option value="' + l + '">' + levels[l].name + '</option>');
 	});

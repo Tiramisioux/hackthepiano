@@ -1,0 +1,15 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "hackthepiano",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "/Users/patrikeriksson/Documents/hackthepiano/scripts/devserver.js",
+        "--root", "/Users/patrikeriksson/Documents/hackthepiano",
+        "--port", "8123"
+      ],
+      "port": 8123
+    }
+  ]
+}
