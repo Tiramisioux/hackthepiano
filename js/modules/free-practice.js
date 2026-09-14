@@ -1,16 +1,20 @@
 /*
- * free-practice — a grand staff with no exercise attached: it simply shows the
- * notes you are playing, named, with the interval or chord they spell.
+ * free-practice — a grand staff with no exercise attached: it shows the notes
+ * you are playing, in the middle of the staff, named.
  *
- * Play one note and it appears in the middle of the staff, named, large. Play
- * another and the first slides left to make room, so the staff reads as a
- * history of what you have played. Notes played together — held at the same
- * time, or within a couple of hundred milliseconds of each other — stay in one
- * group and are named as an interval or a chord instead of sliding apart.
+ * Play a note and it appears dead centre, with ledger lines when it sits
+ * outside the staff. Notes played together — held at the same time, or within a
+ * couple of hundred milliseconds of each other — form one group and are named
+ * as an interval or a chord. The group stays up until you play the next one, so
+ * you can read back what you just played.
  *
- * It renders its own staves from the notation primitives js/code.js exposes on
+ * Chord naming takes the note you struck FIRST as the root, which is what lets a
+ * voicing keep its name: C-E-G spread across two hands is still C major as long
+ * as the C came first.
+ *
+ * It renders its staves from the notation primitives js/code.js publishes on
  * HTP.notation, so the geometry, glyphs, spelling and landmark markings are
- * exactly the ones the trainer uses.
+ * exactly the trainer's.
  */
 (function (window, document) {
 	'use strict';
@@ -20,17 +24,10 @@
 	 * also stays open for as long as any of its notes is still held. */
 	var GROUP_WINDOW_MS = 220;
 
-	/* Horizontal step between groups, and how many to keep before the oldest
-	 * falls off the left. */
-	var GROUP_SPACING_EM = 2.0;
-	var GROUP_WIDTH_EM = 2.4;
-	var MAX_GROUPS = 16;
-
 	var CLEF_IDS = ['treble', 'bass'];
 
-	/* Newest group first. Each is {sounds: [], startedAt, held: {}}. */
-	var groups = [];
-	var staves = {};               /* clef id -> jQuery .staff element */
+	var group = null;              /* {sounds, order, startedAt, held}  */
+	var staves = {};               /* clef id -> jQuery .staff element  */
 	var readoutEl = null;
 	var unsubscribe = null;
 
@@ -47,6 +44,8 @@
 			var staff = $('<div class="staff"></div>').append('<div class="lines"></div>');
 			$('<div class="staffContainer"></div>').append(staff).appendTo(container);
 			staves[clefId] = staff;
+
+			notation().renderStaffLines(staff);
 
 			var clef = notation().buildClefSymbol(clefId);
 			if (clef) staff.append(clef.css({left: '0.2em'}));
@@ -76,64 +75,61 @@
 	/* ---------------------------------------------------------------- notes */
 
 	/*
-	 * Draw every group. Index 0 sits in the middle of the staff and each older
-	 * group is one step further left, so a new note pushes the history along.
-	 * A group that spans both staves uses the same offset on each, so its
-	 * noteheads stay vertically aligned.
+	 * Draw the current group in the middle of the staff. Its horizontal position
+	 * is fixed in css/htp.css so the notehead lands exactly on centre; a group
+	 * spanning both staves therefore lines up vertically for free.
 	 */
 	function render() {
 		CLEF_IDS.forEach(function (clefId) {
 			staves[clefId].find('.htp-free-note').remove();
 		});
 
-		groups.forEach(function (group, index) {
-			var offsetEm = (GROUP_WIDTH_EM / 2) + (index * GROUP_SPACING_EM);
-			var left = 'calc(50% - ' + offsetEm + 'em)';
+		if (!group || !group.sounds.length) {
+			updateReadout(null);
+			return;
+		}
 
-			var byClef = {};
-			CLEF_IDS.forEach(function (id) { byClef[id] = []; });
-			group.sounds.forEach(function (sound) {
-				byClef[notation().bestClef(sound, CLEF_IDS)].push(sound);
-			});
-
-			CLEF_IDS.forEach(function (clefId) {
-				if (!byClef[clefId].length) return;
-
-				var symbol = $('<div class="symbol note visible htp-free-note"></div>')
-					.css({left: left});
-				if (index > 0) symbol.addClass('htp-free-note--past');
-
-				var topLedgers = 0;
-				var bottomLedgers = 0;
-
-				byClef[clefId].forEach(function (sound) {
-					var built = notation().buildNoteGlyph(clefId, sound);
-					if (!built) return;
-					symbol.append(built.glyph);
-					var ledgers = notation().ledgerLineCount(built.shift);
-					topLedgers = Math.max(topLedgers, ledgers);
-					bottomLedgers = Math.min(bottomLedgers, ledgers);
-				});
-
-				notation().addLedgerLines(symbol, topLedgers);
-				notation().addLedgerLines(symbol, bottomLedgers);
-				staves[clefId].append(symbol);
-			});
+		var byClef = {};
+		CLEF_IDS.forEach(function (id) { byClef[id] = []; });
+		group.sounds.forEach(function (sound) {
+			byClef[notation().bestClef(sound, CLEF_IDS)].push(sound);
 		});
 
-		updateReadout(groups.length ? groups[0].sounds : []);
+		CLEF_IDS.forEach(function (clefId) {
+			if (!byClef[clefId].length) return;
+
+			var symbol = $('<div class="symbol note visible htp-free-note"></div>');
+			var topLedgers = 0;
+			var bottomLedgers = 0;
+
+			byClef[clefId].forEach(function (sound) {
+				var built = notation().buildNoteGlyph(clefId, sound);
+				if (!built) return;
+				symbol.append(built.glyph);
+				/* Ledger lines for anything sitting outside the staff. */
+				var ledgers = notation().ledgerLineCount(built.shift);
+				topLedgers = Math.max(topLedgers, ledgers);
+				bottomLedgers = Math.min(bottomLedgers, ledgers);
+			});
+
+			notation().addLedgerLines(symbol, topLedgers);
+			notation().addLedgerLines(symbol, bottomLedgers);
+			staves[clefId].append(symbol);
+		});
+
+		updateReadout(group);
 	}
 
-	function updateReadout(sounds) {
+	function updateReadout(current) {
 		if (!readoutEl) return;
 
-		if (!sounds.length) {
+		if (!current || !current.sounds.length) {
 			readoutEl.html('<div class="htp-readout__secondary">Play a note — on the keyboard below, or on a connected piano.</div>');
 			return;
 		}
 
-
-		var described = notation().describeSounds(sounds);
+		/* order[0] is the note struck first, which names the chord. */
+		var described = notation().describeSounds(current.sounds.slice(), current.order[0]);
 		var html = '<div class="htp-readout__primary">' + described.primary + '</div>';
 		if (described.secondary)
 			html += '<div class="htp-readout__secondary">' + described.secondary + '</div>';
@@ -141,31 +137,32 @@
 	}
 
 	/*
-	 * A note joins the newest group while that group is still sounding, or while
+	 * A note joins the current group while that group is still sounding, or while
 	 * it is still within the grouping window — that is what makes a chord one
-	 * group. Otherwise it starts a new group, pushing the history left.
+	 * group. Otherwise it replaces it.
 	 */
 	function noteOn(sound) {
 		var now = new Date().getTime();
-		var newest = groups[0];
-		var stillHeld = newest && Object.keys(newest.held).length > 0;
-		var withinWindow = newest && (now - newest.startedAt) < GROUP_WINDOW_MS;
+		var stillHeld = group && Object.keys(group.held).length > 0;
+		var withinWindow = group && (now - group.startedAt) < GROUP_WINDOW_MS;
 
-		if (newest && (stillHeld || withinWindow)) {
-			if (newest.sounds.indexOf(sound) === -1) newest.sounds.push(sound);
-		} else {
-			groups.unshift({sounds: [sound], startedAt: now, held: {}});
-			while (groups.length > MAX_GROUPS) groups.pop();
+		if (!group || !(stillHeld || withinWindow))
+			group = {sounds: [], order: [], startedAt: now, held: {}};
+
+		if (group.sounds.indexOf(sound) === -1) {
+			group.sounds.push(sound);
+			group.order.push(sound);
+			group.sounds.sort(function (a, b) { return a - b; });
 		}
-
-		groups[0].sounds.sort(function (a, b) { return a - b; });
-		groups[0].held[sound] = true;
+		group.held[sound] = true;
 		render();
 	}
 
 	function noteOff(sound) {
-		groups.forEach(function (group) { delete group.held[sound]; });
-		render();
+		if (!group) return;
+		delete group.held[sound];
+		/* The group stays on screen after release, until the next one replaces
+		 * it, so you can read back what you just played. */
 	}
 
 	/* ------------------------------------------------------------- lifecycle */
@@ -178,7 +175,7 @@
 		init: function (root, api) {
 			buildStaves(root);
 			applyOptions();
-			updateReadout([]);
+			render();
 
 			api.onSettingChange(function (key) {
 				if (key === 'musicalClefDistance' || key === 'lineMarkers'
@@ -203,7 +200,7 @@
 				unsubscribe();
 				unsubscribe = null;
 			}
-			groups = [];
+			group = null;
 			render();
 		}
 	});

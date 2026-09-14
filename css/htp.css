@@ -473,13 +473,64 @@ div.staff div.symbol.note svg.played.correct { --htp-played-colour: #1e9e5a; }
    outgoing clef as they scroll past. */
 .htp-free div.staff div.symbol.clef { background: transparent; }
 
-/* Free practice lays its notes out as a history: the newest group sits in the
-   middle of the staff and older ones step left until they fall off the edge.
-   Positions are set inline by js/modules/free-practice.js. */
+/*
+ * Free practice puts the note you are playing dead centre.
+ *
+ * Every note glyph right-aligns its notehead inside the symbol box (the original
+ * stylesheet sets `right: 0` with a 0.1em right margin), so accidentals grow
+ * leftwards and the notehead always lands in the same place whatever the
+ * spelling. Working back from a notehead centred on 50%, the box's `left` is:
+ *
+ *     50%  - 2.4em    box width
+ *          + 0.1em    the glyph's right margin
+ *          + 0.132em  half a notehead (141.012 of 1066.201 viewBox units,
+ *                     rendered 2em tall, so 0.2645em wide)
+ *          - 0.1em    .symbol.note's own margin-left, which offsets the box
+ *     = 50% - 2.268em
+ *
+ * Verified in the browser: notehead centre lands within a pixel of staff centre.
+ */
 div.staff div.symbol.note.htp-free-note {
 	width: 2.4em;
+	left: calc(50% - 2.268em);
 	overflow: visible;
-	transition: left 0.18s ease;
 }
 
-div.staff div.symbol.note.htp-free-note--past { opacity: 0.55; }
+/*
+ * Ledger lines for a free-practice note. The original stylesheet stretches them
+ * across the whole symbol box (`left: 0; right: 0`), which is right for the
+ * trainer, where the box is measured to fit its glyphs. Here the box is a fixed
+ * 2.4em so accidentals have room, and a full-width ledger line would trail far
+ * off to the left of the notehead.
+ *
+ * Right-aligning them at 0.464em wide centres them on the notehead: the
+ * notehead's centre sits 0.232em in from the box's right edge, so a line of
+ * twice that width, right-aligned, shares the same centre.
+ */
+div.staff div.symbol.note.htp-free-note svg.line {
+	left: auto;
+	right: 0;
+	width: 0.464em;
+}
+
+/* --------------------------------------------------------------- staff lines */
+
+/*
+ * The five staff lines are drawn as elements by renderStaffLines() in
+ * js/code.js, at the same computed positions the notes and landmark markers
+ * use. The original stylesheet tiles them as a background SVG, which the
+ * browser rounds — so at some sizes and zoom levels the painted lines no longer
+ * matched where the notes and markers were placed. One formula for all three
+ * removes that whole class of drift.
+ */
+div.staff div.lines {
+	background-image: none;
+}
+
+div.staff div.lines .htp-staffline {
+	position: absolute;
+	left: 0;
+	right: 0;
+	height: 0;
+	border-top: 1px solid #000;
+}
