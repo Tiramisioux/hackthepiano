@@ -149,6 +149,11 @@ div.staffsContainer {
 	max-height: 240px;
 	overflow: hidden;
 	transition: max-height 0.18s ease, padding 0.18s ease;
+	/* A flex item's automatic minimum size refuses to shrink below its content,
+	   which beats max-height and leaves the drawer stuck open. `overflow:hidden`
+	   is supposed to zero that automatically; Safari does not always agree, so
+	   say it explicitly. */
+	min-height: 0;
 }
 
 .htp-optionsbar[data-open="false"] {
