@@ -471,3 +471,9 @@ div.staff div.symbol.note.htp-free-note {
 	text-align: center;
 	color: var(--htp-ink);
 }
+
+/* Free practice has no scrolling notes and no clef changes, so its clefs need
+   no opaque backdrop — and without one the landmark rules and bands read across
+   them. The trainer keeps its opaque clef, which is what masks notes and an
+   outgoing clef as they scroll past. */
+.htp-free div.staff div.symbol.clef { background: transparent; }
