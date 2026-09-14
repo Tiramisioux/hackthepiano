@@ -185,21 +185,35 @@
 	var STAFF_SIZE_MAX = 110;
 	var STAFF_SIZE_STEP = 6;
 
+	function clampStaffSize(value) {
+		var size = parseInt(value, 10);
+		if (isNaN(size)) size = 75;
+		return Math.max(STAFF_SIZE_MIN, Math.min(STAFF_SIZE_MAX, size));
+	}
+
+	/*
+	 * Everything the staff size drives: the CSS variable the notation is sized
+	 * from, the number shown in the control, and a redraw of whatever is
+	 * positioned against the staff.
+	 *
+	 * This runs from an HTP.onSettingChange listener rather than from the +/-
+	 * buttons, so setting staffSize by any route — the buttons, a restored
+	 * value, or HTP.setSetting() called directly — keeps all three in step.
+	 */
 	function applyStaffSize() {
-		var size = window.HTP.settings.staffSize;
+		var size = clampStaffSize(window.HTP.settings.staffSize);
 		document.documentElement.style.setProperty('--htp-staff-size', size + 'px');
+
 		var label = document.getElementById('optStaffSize');
 		if (label) label.textContent = String(size);
+
+		if (typeof window.HTP.applyStaffSpacing === 'function') window.HTP.applyStaffSpacing();
+		if (typeof window.HTP.applyLineMarkers === 'function') window.HTP.applyLineMarkers();
 	}
 
 	function nudgeStaffSize(delta) {
-		var next = Math.max(STAFF_SIZE_MIN,
-			Math.min(STAFF_SIZE_MAX, window.HTP.settings.staffSize + delta));
-		window.HTP.setSetting('staffSize', next);
-		applyStaffSize();
-		/* The staff geometry moved, so anything positioned against it redraws. */
-		if (typeof window.HTP.applyStaffSpacing === 'function') window.HTP.applyStaffSpacing();
-		if (typeof window.HTP.applyLineMarkers === 'function') window.HTP.applyLineMarkers();
+		/* setSetting notifies the listener, which does the applying. */
+		window.HTP.setSetting('staffSize', clampStaffSize(window.HTP.settings.staffSize + delta));
 	}
 
 	function bindOptions() {
@@ -218,12 +232,14 @@
 		var bigger = document.getElementById('optStaffBigger');
 		if (smaller) smaller.addEventListener('click', function () { nudgeStaffSize(-STAFF_SIZE_STEP); });
 		if (bigger) bigger.addEventListener('click', function () { nudgeStaffSize(STAFF_SIZE_STEP); });
-		applyStaffSize();
 
-		/* js/code.js has already drawn the first clef by now, so re-apply
-		 * whatever was restored from a previous visit. */
-		if (typeof window.HTP.applyStaffSpacing === 'function') window.HTP.applyStaffSpacing();
-		if (typeof window.HTP.applyLineMarkers === 'function') window.HTP.applyLineMarkers();
+		window.HTP.onSettingChange(function (key) {
+			if (key === 'staffSize') applyStaffSize();
+		});
+
+		/* js/code.js has already drawn the first clef by now, so this both sets
+		 * the restored size and re-applies everything positioned against it. */
+		applyStaffSize();
 	}
 
 	/* ----------------------------------------------------------------- boot */
