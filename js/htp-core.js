@@ -231,8 +231,10 @@ window.HTP = (function (window, document) {
 		showNoteNames: false,
 		keyNames: false,
 		/* Staff size in px. Everything on a staff is sized in em off this, so it
-		 * scales the notation — clefs, noteheads, markers and spacing alike. */
-		staffSize: 50,
+		 * scales the notation as a unit — clefs, noteheads, markers and spacing
+		 * alike. 75 is 1.5x the original stylesheet's 50. Being a px value it
+		 * also scales with the browser's own zoom, like the rest of the layout. */
+		staffSize: 75,
 		/* Which landmarks are drawn, on the staff and on the keys alike. */
 		landmarkC: true,
 		landmarkF: true,
