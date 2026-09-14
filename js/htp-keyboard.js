@@ -25,7 +25,10 @@
 	];
 	var DEFAULT_RANGE = 1;
 
-	var BLACK_WIDTH_RATIO = 0.583;      /* of one white key's width  */
+	/* The black-key width is a ratio of the white-key width, but it lives in
+	 * css/htp.css as --htp-black-key-ratio so a media query can narrow it on a
+	 * phone, where a full-width black key leaves too little white key to hit.
+	 * JS publishes the white-key width; CSS does the multiplication. */
 	var MAX_WHITE_KEY_PX = 58;          /* keep few-key ranges sane  */
 	var MIN_WHITE_KEY_PX = 15;          /* below this, scroll        */
 
@@ -86,11 +89,11 @@
 
 		var whiteCount = whiteNotes.length;
 		var whiteWidth = 100 / whiteCount;           /* percent */
-		var blackWidth = whiteWidth * BLACK_WIDTH_RATIO;
 
 		/* Cap how wide a single key can get, and how narrow before scrolling. */
 		keysEl.style.maxWidth = (whiteCount * MAX_WHITE_KEY_PX) + 'px';
 		keysEl.style.minWidth = (whiteCount * MIN_WHITE_KEY_PX) + 'px';
+		keysEl.style.setProperty('--htp-white-key-width', whiteWidth + '%');
 
 		/* White keys first so the black ones stack above them. */
 		whiteNotes.forEach(function (n, index) {
@@ -98,7 +101,6 @@
 			el.className = 'htp-key htp-key--white';
 			el.setAttribute('data-note', String(n));
 			el.style.left = (index * whiteWidth) + '%';
-			el.style.width = whiteWidth + '%';
 			var text = labelFor(n);
 			if (text) {
 				var label = document.createElement('span');
@@ -110,15 +112,16 @@
 			keyElements[n] = el;
 		});
 
-		/* Black keys sit centred on the seam after their preceding white key. */
+		/* Black keys sit on the seam after their preceding white key; CSS centres
+		 * them on it with a translate, so their width can change without JS
+		 * having to recompute any offsets. */
 		var whiteIndex = 0;
 		for (note = range.low; note <= range.high; note++) {
 			if (!isBlack(note)) { whiteIndex++; continue; }
 			var el = document.createElement('div');
 			el.className = 'htp-key htp-key--black';
 			el.setAttribute('data-note', String(note));
-			el.style.left = 'calc(' + (whiteIndex * whiteWidth) + '% - ' + (blackWidth / 2) + '%)';
-			el.style.width = blackWidth + '%';
+			el.style.left = (whiteIndex * whiteWidth) + '%';
 			keysEl.appendChild(el);
 			keyElements[note] = el;
 		}

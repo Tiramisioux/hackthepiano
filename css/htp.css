@@ -8,8 +8,10 @@
 	--htp-keyboard-height: 160px;
 	--htp-keyboard-bar: 34px;
 	/* Acoustic piano proportions: a black key is ~95mm of a white key's ~148mm
-	   length, and ~13.7mm of its ~23.5mm width (the width is applied in JS). */
+	   length and ~13.7mm of its ~23.5mm width. The width ratio is narrowed on a
+	   phone, where true proportions leave too little white key to hit. */
 	--htp-black-key-height: 64%;
+	--htp-black-key-ratio: 0.583;
 	--htp-border: #d8d8d8;
 	--htp-ink: #222;
 	--htp-muted: #767676;
@@ -128,9 +130,14 @@ body:not(.htp-multi-module) .htp-tabbar { display: none; }
 div.buttonsContainer { position: static; padding: 0.75em 1em 0; }
 /* The whole staff — clefs, noteheads, markers, spacing — is sized in em off
    this one value, so changing it zooms the notation as a unit. Set from
-   js/htp-panes.js; browser zoom still applies on top of it. */
+   js/htp-panes.js; browser zoom still applies on top of it.
+
+   The staff always spans the full width, so this size governs its HEIGHT and
+   the size of its glyphs, not how wide it is. The viewport cap is therefore
+   only a backstop for genuinely narrow screens, where a tall staff would crowd
+   out the keyboard — it does not kick in on an ordinary phone. */
 div.staffsContainer {
-	font-size: var(--htp-staff-size, 50px);
+	font-size: min(var(--htp-staff-size, 75px), 20vw);
 	margin-top: 0.8em;
 }
 
@@ -318,6 +325,7 @@ div.shareContainer { position: static; }
 }
 
 .htp-key--white {
+	width: var(--htp-white-key-width);
 	height: 100%;
 	background: #fff;
 	border: 1px solid #555;
@@ -327,6 +335,10 @@ div.shareContainer { position: static; }
 }
 
 .htp-key--black {
+	/* Centred on the seam its `left` names, so the ratio can change without JS
+	   recomputing any offsets. */
+	width: calc(var(--htp-white-key-width) * var(--htp-black-key-ratio));
+	transform: translateX(-50%);
 	height: var(--htp-black-key-height);
 	background: #1c1c1c;
 	border: 1px solid #000;
@@ -580,3 +592,69 @@ div.staff div.lines .htp-staffline {
 
 /* Turning a clef off hides its whole staff, which js/code.js and the modules
    that draw their own staves each handle — there is nothing to do in CSS. */
+
+/* ------------------------------------------------------------------ phones */
+
+/*
+ * The app is a fixed stack of horizontal bands — tabs, options, staff,
+ * keyboard — and on a narrow, short screen each one has to give up some room.
+ */
+@media (max-width: 700px) {
+	:root {
+		--htp-keyboard-height: 108px;
+		--htp-keyboard-bar: 30px;
+	}
+
+	/* Three tabs plus three buttons: let them wrap rather than squash, and
+	   shrink them so they usually do not have to. */
+	.htp-tabbar {
+		flex-wrap: wrap;
+		gap: 0.3em;
+		padding: 0.25em 0.5em;
+		min-height: 0;
+	}
+
+	.htp-tab { font-size: 13px; padding: 0.4em 0.6em; }
+	.htp-iconbtn { font-size: 12px; padding: 0.3em 0.5em; }
+
+	/* Two panes side by side on a phone would leave neither readable, and the
+	   button costs a row in a bar that is already wrapping. */
+	#htpSplit { display: none; }
+
+	.htp-optionsbar { padding: 0.4em 0.6em; max-height: 420px; }
+	.htp-options { gap: 0.35em 0.9em; font-size: 12px; }
+
+	/* The trainer's own controls, sized by the original stylesheet for a
+	   desktop window. */
+	div.buttonsContainer { padding: 0.5em 0.6em 0; }
+	div.levelsContainer { margin-top: 0.6em; font-size: 13px; }
+	div.levelsContainer select { max-width: 60vw; }
+
+	.htp-readout { min-height: 2.6em; margin: 0.3em 0 0.5em; }
+	.htp-readout__primary { font-size: 24px; }
+	.htp-readout__secondary { font-size: 13px; }
+
+	.htp-footer { padding: 0.4em 0.6em; font-size: 12px; }
+
+	.htp-keyboard__bar { gap: 0.6em; padding: 0 0.5em; font-size: 12px; }
+	.htp-keyboard__grouplabel { display: none; }   /* the buttons speak for themselves */
+	.htp-keyboard__status { font-size: 11px; }
+
+	.htp-monitor { padding: 0.7em; font-size: 13px; }
+}
+
+/* Portrait is the tight one: the keyboard is at its narrowest, so a true-width
+   black key leaves too little white key either side to hit with a thumb. */
+@media (max-width: 700px) and (orientation: portrait) {
+	:root { --htp-black-key-ratio: 0.44; }
+}
+
+/* Landscape on a phone is all width and no height; give the chrome back. */
+@media (max-height: 480px) {
+	:root {
+		--htp-keyboard-height: 84px;
+		--htp-keyboard-bar: 28px;
+	}
+	.htp-footer { display: none; }
+	div.staffsContainer { margin-top: 0.3em; }
+}
