@@ -54,6 +54,8 @@ The fork's additions were built with [Claude Code](https://claude.com/claude-cod
 - **A MIDI monitor module**, which doubles as the reference implementation for
   writing a new module.
 - Interval and chord levels (beta).
+- An optional synthesised piano tone for whatever you play, and a multi-touch
+  on-screen keyboard so chords work under several fingers at once.
 
 No build step, no dependencies, no package.json. It is still a static site you
 can open from any web server.
@@ -76,6 +78,12 @@ needs the Web MIDI API, which not every browser implements. Everything else —
 the on-screen keyboard, the computer-keyboard mapping, every module, the
 landmark markings, the readout — is ordinary DOM and works anywhere reasonably
 current.
+
+The **piano sound** is Web Audio, which every current browser has, and it is
+synthesised rather than sampled — so there is nothing to download and it starts
+instantly. Browsers will not let a page make sound until you have interacted
+with it, so the first key you press is what starts the audio; that is by design,
+not a delay to work around. Turn it off with the *Piano sound* checkbox.
 
 | | Real MIDI piano | Everything else |
 |---|---|---|

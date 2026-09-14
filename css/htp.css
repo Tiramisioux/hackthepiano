@@ -322,6 +322,7 @@ div.shareContainer { position: static; }
 	cursor: pointer;
 	user-select: none;
 	-webkit-user-select: none;
+	-webkit-touch-callout: none;   /* no long-press menu over a key on iOS */
 }
 
 .htp-key--white {
