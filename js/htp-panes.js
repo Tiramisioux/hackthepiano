@@ -178,6 +178,7 @@
 		{ id: 'optPianoSound',          setting: 'pianoSound',          apply: null },
 		{ id: 'optShowClefTreble',      setting: 'showClefTreble',      apply: null },
 		{ id: 'optShowClefBass',        setting: 'showClefBass',        apply: null },
+		{ id: 'optBothClefs',           setting: 'bothClefs',           apply: null },
 		{ id: 'optKeyNames',            setting: 'keyNames',            apply: null },
 		{ id: 'optOctaveNumbers',       setting: 'octaveNumbers',       apply: null },
 		{ id: 'optLandmarkC',           setting: 'landmarkC',           apply: 'applyLineMarkers' },
@@ -297,6 +298,19 @@
 			window.HTP.applyStaffVisibility();
 	}
 
+	/* "Both" only means anything while the staves are far enough apart for two
+	 * copies of a note to land in different places, so it follows Musical clef
+	 * distance rather than pretending to work underneath it. */
+	function applyBothClefsAvailability() {
+		var box = document.getElementById('optBothClefs');
+		var label = document.getElementById('optBothClefsLabel');
+		if (!box) return;
+
+		var unavailable = window.HTP.settings.musicalClefDistance === true;
+		box.disabled = unavailable;
+		if (label) label.classList.toggle('is-disabled', unavailable);
+	}
+
 	function clampStaffSize(value) {
 		var size = parseInt(value, 10);
 		if (isNaN(size)) size = 75;
@@ -348,6 +362,7 @@
 		window.HTP.onSettingChange(function (key) {
 			if (key === 'staffSize') applyStaffSize();
 			if (key.indexOf('showClef') === 0) applyClefVisibility();
+			if (key === 'musicalClefDistance') applyBothClefsAvailability();
 			if (RECOLOUR_ON.indexOf(key) !== -1
 				&& typeof window.HTP.applyNoteColours === 'function')
 				window.HTP.applyNoteColours();
@@ -377,6 +392,7 @@
 		setOptionsOpen(readStoredOptionsOpen());
 
 		applyClefVisibility();
+		applyBothClefsAvailability();
 
 		/* js/code.js has already drawn the first clef by now, so this both sets
 		 * the restored size and re-applies everything positioned against it. */
