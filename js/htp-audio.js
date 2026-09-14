@@ -60,8 +60,10 @@
 	 */
 	function audio() {
 		if (ctx) {
-			/* Safari suspends the context when the tab loses focus. */
-			if (ctx.state === 'suspended' && ctx.resume) ctx.resume();
+			/* Safari suspends the context when the tab loses focus. Only resume
+			 * it when sound is actually wanted — a context suspended because the
+			 * option is off must stay that way. */
+			if (ctx.state === 'suspended' && ctx.resume && enabled()) ctx.resume();
 			return ctx;
 		}
 
@@ -209,7 +211,18 @@
 		});
 
 		window.HTP.onSettingChange(function (key) {
-			if (key === 'pianoSound' && !enabled()) allNotesOff(true);
+			if (key !== 'pianoSound') return;
+
+			if (!enabled()) {
+				allNotesOff(true);
+				/* Belt and braces: silencing the voices should be enough, but
+				 * suspending the context stops the hardware too, so nothing can
+				 * make a sound while this is switched off whatever reaches the
+				 * bus. */
+				if (ctx && ctx.state === 'running' && ctx.suspend) ctx.suspend();
+				return;
+			}
+			if (ctx && ctx.state === 'suspended' && ctx.resume) ctx.resume();
 		});
 
 		window.addEventListener('blur', function () { allNotesOff(false); });

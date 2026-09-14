@@ -591,6 +591,11 @@ div.staff div.lines .htp-staffline {
 	border-top: 1px solid #000;
 }
 
+/* Free practice grows its staff container when a note falls outside the staff.
+   Deliberately NOT transitioned: the room has to be there the instant the note
+   is drawn, and an eased padding also reports its starting value to any script
+   measuring it mid-transition, which makes the behaviour hard to verify. */
+
 /* Turning a clef off hides its whole staff, which js/code.js and the modules
    that draw their own staves each handle — there is nothing to do in CSS. */
 
