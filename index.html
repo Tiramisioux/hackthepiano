@@ -6,69 +6,89 @@
     <meta http-equiv="content-type" content="text/html; charset=utf-8">
 		<meta property="og:type" content="website">
 		<meta property="og:title" content="Learn notes fast and easy!">
+		<meta property="og:url" content="https://tiramisioux.github.io/hackthepiano/">
 
 		<meta name="twitter:card" content="summary_large_image">
 		<meta name="twitter:site" content="@hackthepiano">
 		<meta name="twitter:title" content="Learn notes fast and easy!">
 
-  	<meta name="keywords" content="notes, piano, playing"> 
+  	<meta name="keywords" content="notes, piano, playing">
   	<meta name="description" content="Learn notes fast and easy by connecting your digital piano to computer">
   	<meta property="og:description" content="Learn notes fast and easy by connecting your digital piano to computer">
   	<meta name="twitter:description" content="Learn notes fast and easy by connecting your digital piano to computer">
-  	<meta property="og:image" content="https://wojciechmalota.github.io/hackthepiano/img/image.png">
-  	<meta name="twitter:image" content="https://wojciechmalota.github.io/hackthepiano/img/image.png">
+  	<meta property="og:image" content="https://tiramisioux.github.io/hackthepiano/img/image.png">
+  	<meta name="twitter:image" content="https://tiramisioux.github.io/hackthepiano/img/image.png">
 		<meta name="author" content="Wojciech Małota-Wójcik">
-		
+
     <link rel="stylesheet" href="css/bootstrap-3.3.7/css/bootstrap.min.css">
     <link rel="stylesheet" href="css/styles.css">
-		<script>
-		  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
-		  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
-		  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
-		  })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
-		
-		  ga('create', 'UA-2545926-20', 'auto');
-		  ga('send', 'pageview');
-		
-		</script>
-		<!-- Facebook Pixel Code -->
-		<script>
-		!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?
-		n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;
-		n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;
-		t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,
-		document,'script','https://connect.facebook.net/en_US/fbevents.js');
-		fbq('init', '250625871981446'); // Insert your pixel ID here.
-		fbq('track', 'PageView');
-		</script>
-		<noscript><img height="1" width="1" style="display:none"
-		src="https://www.facebook.com/tr?id=250625871981446&ev=PageView&noscript=1"
-		/></noscript>
-		<!-- DO NOT MODIFY -->
-		<!-- End Facebook Pixel Code -->
+    <link rel="stylesheet" href="css/htp.css">
   </head>
   <body>
-  	<div class="staffsContainer">
-	  	<div class="staffContainer">
-	   		<div class="staff" id="staff1"><div class="lines"></div></div>
-	   	</div>
-	   	<div class="staffContainer">
-	   		<div class="staff" id="staff2"><div class="lines"></div></div>
-	   	</div>
-   	</div>
-   	<div class="buttonsContainer">
-   		<div class="btn-group" role="group" aria-label="...">
-	   		<a class="btn btn-primary" href="#" role="button" data-toggle="modal" data-target="#results">Your results</a>
-	   		<a class="btn btn-info" href="#" role="button" data-toggle="modal" data-target="#help">Help</a>
-	   	</div>
-	   	<div class="levelsContainer">Select difficulty level: <select id="level"></select></div>
-   	</div>
-   	<div class="shareContainer">
-   		Found the tool useful? Share with others:
-   		<a href="https://www.facebook.com/sharer/sharer.php?u=https%3A//wojciechmalota.github.io/hackthepiano/" target="_blank">Facebook</a>
-   		<a href="https://twitter.com/home?status=https%3A//wojciechmalota.github.io/hackthepiano/" target="_blank">Twitter</a>
-   	</div>
-   	
+  	<div class="htp-app">
+  		<header class="htp-tabbar">
+  			<div class="htp-tabs" id="htpTabs" role="tablist"></div>
+  			<button type="button" class="htp-iconbtn" id="htpSplit" aria-pressed="false" title="Show two modules at once">Split</button>
+  		</header>
+
+  		<main class="htp-panes" id="htpPanes" data-layout="single">
+  			<!-- Module #1: the original note trainer. Its markup must stay here in
+  			     index.html — js/code.js resolves #staff1/#staff2/#level globally at
+  			     DOM ready. See js/modules/note-trainer.js. -->
+  			<section class="htp-pane" data-module="note-trainer" role="tabpanel" aria-label="Note trainer">
+			   	<div class="buttonsContainer">
+			   		<div class="btn-group" role="group" aria-label="...">
+				   		<a class="btn btn-primary" href="#" role="button" data-toggle="modal" data-target="#results">Your results</a>
+				   		<a class="btn btn-info" href="#" role="button" data-toggle="modal" data-target="#help">Help</a>
+				   	</div>
+				   	<div class="levelsContainer">Select difficulty level: <select id="level"></select></div>
+				   	<div class="htp-options">
+				   		<label title="Space the staves by the true pitch distance between their clefs instead of the wider gap sheet music conventionally engraves">
+				   			<input type="checkbox" id="optMusicalClefDistance"> Musical clef distance
+				   		</label>
+				   		<label title="Name the note being asked for — or the interval for two notes, the chord for three or more">
+				   			<input type="checkbox" id="optShowNoteNames"> Note names
+				   		</label>
+				   		<label title="Mark the landmarks on the staff — a dashed rule where one falls on a line, a filled band where one falls in a space">
+				   			<input type="checkbox" id="optLineMarkers"> Line markers
+				   		</label>
+				   		<label title="Tint the landmark keys on the on-screen keyboard to match">
+				   			<input type="checkbox" id="optColourKeys"> Colour keys
+				   		</label>
+				   		<label title="Print F and G key names on the keyboard too, the way C1, C2 … always are">
+				   			<input type="checkbox" id="optKeyNames"> Key names
+				   		</label>
+				   		<span class="htp-options__group">
+				   			<span class="htp-options__grouplabel">Landmarks</span>
+				   			<label title="Show the C landmarks on the staff and on the keys"><input type="checkbox" id="optLandmarkC"> C</label>
+				   			<label title="Show the F landmarks on the staff and on the keys"><input type="checkbox" id="optLandmarkF"> F</label>
+				   			<label title="Show the G landmarks on the staff and on the keys"><input type="checkbox" id="optLandmarkG"> G</label>
+				   		</span>
+				   	</div>
+			   	</div>
+			  	<div class="staffsContainer">
+				  	<div class="staffContainer">
+				   		<div class="staff" id="staff1"><div class="lines"></div></div>
+				   	</div>
+				   	<div class="staffContainer">
+				   		<div class="staff" id="staff2"><div class="lines"></div></div>
+				   	</div>
+			   	</div>
+			  	<div class="htp-readout" id="htpReadout"></div>
+  			</section>
+
+  			<!-- Further module panes are created by js/htp-panes.js -->
+  		</main>
+
+  		<footer class="htp-footer">
+	   		<div class="shareContainer">
+	   			Found the tool useful? Share with others:
+	   			<a href="https://www.facebook.com/sharer/sharer.php?u=https%3A//tiramisioux.github.io/hackthepiano/" target="_blank" rel="noopener">Facebook</a>
+	   			<a href="https://twitter.com/home?status=https%3A//tiramisioux.github.io/hackthepiano/" target="_blank" rel="noopener">Twitter</a>
+	   		</div>
+  		</footer>
+  	</div>
+
    	<div id="results" class="modal fade" role="dialog">
 		  <div class="modal-dialog">
 		    <div class="modal-content">
@@ -97,13 +117,15 @@
 		      </div>
 		      <div class="modal-body">
 		        <ol>
-		        	<li>Connect your digital piano with MIDI interface to computer</li>
-		        	<li>Open this website in Chrome or Opera browser</li>
+		        	<li>Connect your digital piano with MIDI interface to computer &mdash; or just use the keyboard drawer at the bottom of the screen</li>
+		        	<li>Open this website in Chrome, Edge or Opera</li>
 		        	<li>Select difficulty level</li>
 		        	<li>Play the note you see</li>
 		        	<li>Improve yourself!</li>
 		       	</ol>
-		       	Have a problem or idea? Mail me: <a href="mailto:wojciech.malota@invini.pl">wojciech.malota@invini.pl</a> 
+		       	<p>No piano to hand? Click the on-screen keys, or play with your computer keyboard: <code>A</code>&ndash;<code>J</code> for white notes, <code>W</code>/<code>E</code>/<code>T</code>/<code>Y</code>/<code>U</code> for black, <code>Z</code>/<code>X</code> to change octave.</p>
+		       	<p>Original app by Wojciech Ma&#0142;ota-W&oacute;jcik &mdash; <a href="mailto:wojciech.malota@invini.pl">wojciech.malota@invini.pl</a>.<br>
+		       	This is a fork with an added module framework and on-screen keyboard: <a href="https://github.com/Tiramisioux/hackthepiano" target="_blank" rel="noopener">github.com/Tiramisioux/hackthepiano</a></p>
 		      </div>
 		      <div class="modal-footer">
 		        <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
@@ -111,9 +133,21 @@
 		    </div>
 		  </div>
 		</div>
-  
+
+    <!-- Script order matters:
+         htp-core.js must precede code.js  (it shims ga() and wraps
+           navigator.requestMIDIAccess so the on-screen keyboard appears as a
+           normal MIDI input port to the untouched trainer);
+         htp-panes.js must come last      (jQuery runs ready handlers in
+           registration order, so the trainer measures its staff widths while
+           its pane is still visible). -->
     <script src="js/jquery-3.2.1.min.js" type="text/javascript"></script>
+    <script src="js/htp-core.js" type="text/javascript"></script>
     <script src="css/bootstrap-3.3.7/js/bootstrap.min.js"></script>
     <script src="js/code.js" type="text/javascript"></script>
+    <script src="js/modules/note-trainer.js" type="text/javascript"></script>
+    <script src="js/modules/midi-monitor.js" type="text/javascript"></script>
+    <script src="js/htp-keyboard.js" type="text/javascript"></script>
+    <script src="js/htp-panes.js" type="text/javascript"></script>
   </body>
 </html>

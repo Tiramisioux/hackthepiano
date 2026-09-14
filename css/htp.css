@@ -1,0 +1,420 @@
+/*
+ * htp.css — styling for the module shell (tabs + panes) and the keyboard
+ * drawer. Loaded AFTER css/styles.css so it can adjust the original trainer
+ * layout without editing it.
+ */
+
+:root {
+	--htp-keyboard-height: 160px;
+	--htp-keyboard-bar: 34px;
+	/* Acoustic piano proportions: a black key is ~95mm of a white key's ~148mm
+	   length, and ~13.7mm of its ~23.5mm width (the width is applied in JS). */
+	--htp-black-key-height: 64%;
+	--htp-border: #d8d8d8;
+	--htp-ink: #222;
+	--htp-muted: #767676;
+	--htp-accent: #2b6cb0;
+	--htp-accent-soft: #d6e6fb;
+}
+
+/* ------------------------------------------------------------------ shell */
+
+html { height: 100%; }
+
+body {
+	margin: 0;
+	min-height: 100vh;
+	display: flex;
+	flex-direction: column;
+	overflow-x: hidden;
+	/* Reserve room for the collapsed keyboard bar. */
+	padding-bottom: var(--htp-keyboard-bar);
+	box-sizing: border-box;
+}
+
+body.htp-keyboard-open {
+	padding-bottom: calc(var(--htp-keyboard-height) + var(--htp-keyboard-bar));
+}
+
+.htp-app {
+	flex: 1 1 auto;
+	display: flex;
+	flex-direction: column;
+	min-height: 0;
+}
+
+/* ------------------------------------------------------------------- tabs */
+
+.htp-tabbar {
+	flex: 0 0 auto;
+	display: flex;
+	align-items: center;
+	gap: 0.5em;
+	padding: 0 0.75em;
+	border-bottom: 1px solid var(--htp-border);
+	background: #fafafa;
+	min-height: 40px;
+}
+
+/* A tab bar with a single module on it is just noise. */
+body:not(.htp-multi-module) .htp-tabbar { display: none; }
+
+.htp-tabs { display: flex; gap: 0.25em; flex: 1 1 auto; }
+
+.htp-tab {
+	appearance: none;
+	border: 1px solid transparent;
+	border-bottom: none;
+	background: transparent;
+	color: var(--htp-muted);
+	font: inherit;
+	font-size: 14px;
+	padding: 0.5em 0.9em;
+	border-radius: 4px 4px 0 0;
+	cursor: pointer;
+}
+
+.htp-tab:hover { color: var(--htp-ink); background: #f0f0f0; }
+
+.htp-tab.is-active {
+	color: var(--htp-ink);
+	background: #fff;
+	border-color: var(--htp-border);
+	box-shadow: inset 0 2px 0 var(--htp-accent);
+}
+
+.htp-iconbtn {
+	appearance: none;
+	border: 1px solid var(--htp-border);
+	background: #fff;
+	color: var(--htp-muted);
+	font: inherit;
+	font-size: 13px;
+	padding: 0.35em 0.7em;
+	border-radius: 4px;
+	cursor: pointer;
+}
+
+.htp-iconbtn:hover { color: var(--htp-ink); }
+.htp-iconbtn.is-active { color: #fff; background: var(--htp-accent); border-color: var(--htp-accent); }
+
+/* ------------------------------------------------------------------ panes */
+
+.htp-panes {
+	flex: 1 1 auto;
+	display: flex;
+	flex-direction: column;
+	min-height: 0;
+}
+
+.htp-pane { display: none; }
+
+.htp-pane.is-visible {
+	display: block;
+	position: relative;      /* anchors .buttonsContainer inside its own pane */
+	flex: 1 1 0;
+	min-height: 0;
+	overflow: auto;
+}
+
+/* In split view the panes share the height and get a divider. */
+.htp-panes[data-layout="split"] .htp-pane.is-visible + .htp-pane.is-visible {
+	border-top: 1px solid var(--htp-border);
+}
+
+/* The original stylesheet pins the controls absolutely at the top of the page.
+   Inside a pane, with extra option checkboxes below them, they are better in
+   normal flow — then they can never overlap the staff. */
+div.buttonsContainer { position: static; padding: 0.75em 1em 0; }
+div.staffsContainer { margin-top: 0.8em; }
+
+.htp-panes[data-layout="split"] div.staffsContainer { margin-top: 0.4em; }
+
+.htp-options {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: center;
+	gap: 0.4em 1.4em;
+	margin-top: 0.7em;
+	font-size: 13px;
+	color: var(--htp-muted);
+}
+
+.htp-options label {
+	font-weight: normal;
+	margin: 0;
+	cursor: pointer;
+	display: flex;
+	align-items: center;
+	gap: 0.35em;
+}
+
+.htp-options input { margin: 0; }
+
+/* ----------------------------------------------------------------- footer */
+
+.htp-footer {
+	flex: 0 0 auto;
+	padding: 0.6em 1em;
+	font-size: 13px;
+	color: var(--htp-muted);
+	border-top: 1px solid var(--htp-border);
+}
+
+/* Override the original absolute positioning — the keyboard drawer now owns
+   the bottom of the screen. */
+div.shareContainer { position: static; }
+
+/* --------------------------------------------------------- keyboard drawer */
+
+.htp-keyboard {
+	position: fixed;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	z-index: 1000;
+	background: #fff;
+	border-top: 1px solid var(--htp-border);
+	box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.08);
+}
+
+.htp-keyboard__bar {
+	display: flex;
+	align-items: center;
+	gap: 1em;
+	height: var(--htp-keyboard-bar);
+	padding: 0 0.75em;
+	font-size: 13px;
+	color: var(--htp-muted);
+}
+
+.htp-keyboard__toggle {
+	appearance: none;
+	border: none;
+	background: transparent;
+	font: inherit;
+	color: var(--htp-ink);
+	cursor: pointer;
+	display: flex;
+	align-items: center;
+	gap: 0.45em;
+	padding: 0;
+}
+
+.htp-keyboard__chevron {
+	display: inline-block;
+	width: 0;
+	height: 0;
+	border-left: 5px solid transparent;
+	border-right: 5px solid transparent;
+	border-top: 6px solid var(--htp-ink);
+	transition: transform 0.15s ease;
+}
+
+.htp-keyboard[data-open="false"] .htp-keyboard__chevron { transform: rotate(180deg); }
+
+.htp-keyboard__group { display: flex; align-items: center; gap: 0.4em; }
+.htp-keyboard__grouplabel { color: var(--htp-muted); }
+.htp-keyboard__value { min-width: 4.2em; text-align: center; color: var(--htp-ink); }
+
+.htp-keyboard__btn {
+	appearance: none;
+	border: 1px solid var(--htp-border);
+	background: #fff;
+	color: var(--htp-ink);
+	font: inherit;
+	line-height: 1;
+	width: 22px;
+	height: 22px;
+	border-radius: 3px;
+	cursor: pointer;
+}
+
+.htp-keyboard__status {
+	margin-left: auto;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.htp-keyboard__body {
+	overflow-x: auto;
+	overflow-y: hidden;
+	height: var(--htp-keyboard-height);
+	transition: height 0.18s ease;
+}
+
+.htp-keyboard[data-open="false"] .htp-keyboard__body { height: 0; }
+
+.htp-keys {
+	position: relative;
+	height: var(--htp-keyboard-height);
+	/* min-width and max-width are set per range in js/htp-keyboard.js: narrow
+	   ranges stay a sane key size and centre, wide ones scroll. */
+	margin: 0 auto;
+	touch-action: none;
+}
+
+.htp-key {
+	position: absolute;
+	top: 0;
+	box-sizing: border-box;
+	cursor: pointer;
+	user-select: none;
+	-webkit-user-select: none;
+}
+
+.htp-key--white {
+	height: 100%;
+	background: #fff;
+	border: 1px solid #555;
+	border-top: none;
+	border-radius: 0 0 3px 3px;
+	z-index: 1;
+}
+
+.htp-key--black {
+	height: var(--htp-black-key-height);
+	background: #1c1c1c;
+	border: 1px solid #000;
+	border-top: none;
+	border-radius: 0 0 3px 3px;
+	z-index: 2;
+}
+
+.htp-key--white.is-active { background: var(--htp-accent-soft); }
+.htp-key--black.is-active { background: var(--htp-accent); }
+
+.htp-key__label {
+	position: absolute;
+	bottom: 4px;
+	left: 0;
+	right: 0;
+	text-align: center;
+	font-size: 9px;
+	color: var(--htp-muted);
+	pointer-events: none;
+}
+
+/* ----------------------------------------------------------- midi monitor */
+
+.htp-monitor { padding: 1em 1.2em; font-size: 14px; }
+.htp-monitor__head { display: flex; align-items: center; gap: 1em; }
+.htp-monitor__title { font-size: 16px; margin: 0; flex: 1 1 auto; }
+.htp-monitor__empty { color: var(--htp-muted); }
+
+.htp-monitor__list {
+	list-style: none;
+	margin: 0.8em 0 0;
+	padding: 0;
+	font-family: Menlo, Consolas, monospace;
+	font-size: 12px;
+}
+
+.htp-monitor__row {
+	display: flex;
+	gap: 1em;
+	padding: 0.28em 0.5em;
+	border-bottom: 1px solid #f0f0f0;
+}
+
+.htp-monitor__row--on { background: #f4f9ff; }
+.htp-monitor__label { min-width: 6em; color: var(--htp-ink); }
+.htp-monitor__detail { flex: 1 1 auto; color: var(--htp-muted); }
+.htp-monitor__source { color: #aaa; }
+
+/* ------------------------------------------------------- landmark markings */
+
+/*
+ * The C / F / G landmark system, following the piano-roll project. Parity
+ * decides the shape: a landmark on a staff line gets a dashed rule along it, a
+ * landmark in a space gets a filled band covering that space. Geometry and
+ * colours come from js/code.js (applyLineMarkers) and HTP.landmarks.
+ */
+.htp-markers {
+	position: absolute;
+	left: 0;
+	right: 0;
+	top: 0;
+	bottom: 0;
+	z-index: 1;               /* under the noteheads (5) and staff lines (100) */
+	pointer-events: none;
+	overflow: hidden;
+}
+
+.htp-marker { position: absolute; left: 0; right: 0; }
+
+/* Dash pattern and weight follow the piano-roll renderer: a 2.6mm dash with a
+   2.2mm gap, drawn about 1.9x the weight of a staff line. */
+.htp-marker--rule {
+	height: 2px;
+	background-image: repeating-linear-gradient(
+		to right,
+		currentColor 0, currentColor 6px,
+		transparent 6px, transparent 11px
+	);
+}
+
+.htp-marker--band { opacity: 0.16; }
+
+/* Landmark keys on the on-screen keyboard, tinted to match. */
+.htp-key--white.is-landmark::after {
+	content: '';
+	position: absolute;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	height: 26%;
+	background: var(--htp-key-tint);
+	opacity: 0.85;
+	border-radius: 0 0 2px 2px;
+}
+
+.htp-key__label { z-index: 1; }
+.htp-key--white.is-landmark .htp-key__label { color: #fff; }
+
+/* -------------------------------------------------------- played-note ghost */
+
+/*
+ * The note you actually played, drawn on top of the target note so a wrong
+ * answer shows the interval you missed by. Appended by showPlayedNote() in
+ * js/code.js to the target note's own symbol, so it travels with it.
+ */
+div.staff div.symbol.note svg.played { visibility: visible; opacity: 0.9; }
+div.staff div.symbol.note svg.played path { fill: var(--htp-played-colour, #c0392b); }
+div.staff div.symbol.note svg.played line { stroke: var(--htp-played-colour, #c0392b); }
+div.staff div.symbol.note svg.played.wrong { --htp-played-colour: #c0392b; }
+div.staff div.symbol.note svg.played.correct { --htp-played-colour: #1e9e5a; }
+
+/* ------------------------------------------------------------- name readout */
+
+.htp-readout {
+	min-height: 1.6em;
+	margin-top: 0.6em;
+	text-align: center;
+	font-size: 15px;
+	color: var(--htp-ink);
+}
+
+.htp-readout__target { font-weight: 600; }
+
+.htp-readout__played {
+	margin-left: 1em;
+	font-size: 13px;
+}
+
+.htp-readout__played--wrong { color: #c0392b; }
+.htp-readout__played--correct { color: #1e9e5a; }
+
+.htp-options__group {
+	display: flex;
+	align-items: center;
+	gap: 0.6em;
+}
+
+.htp-options__grouplabel { color: var(--htp-muted); }
+
+/* The original stylesheet gives the clef a solid white background so scrolling
+   notes pass behind it. That also masks the landmark rules and bands, so make it
+   transparent — the markers read through the clef instead of stopping at it. */
+div.staff div.symbol.clef { background: transparent; }

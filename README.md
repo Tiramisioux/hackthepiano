@@ -1,5 +1,87 @@
 # HackThePiano
 
+Learn to read notes on the fly. Play the note you see, as fast as you can.
+
+**Live:** https://tiramisioux.github.io/hackthepiano/
+
+> This is a fork of [wojciechmalota/hackthepiano](https://github.com/wojciechmalota/hackthepiano)
+> by Wojciech Małota-Wójcik. The original app and all of its music logic are his;
+> the original README follows below. This fork adds a module framework, an
+> on-screen keyboard, and extra difficulty levels.
+
+## What this fork adds
+
+- **On-screen keyboard.** A piano drawer pinned to the bottom of the screen, in
+  real acoustic-piano proportions. Click it, or play with your computer keyboard
+  (`A`–`J` white notes, `W`/`E`/`T`/`Y`/`U` black, `Z`/`X` octave). It lights up
+  the keys you play on a real MIDI piano too, and collapses out of the way.
+  A **Range** control widens it from the C4 octave out to the full 88 keys.
+- **Landmark markings**, following the
+  [piano-roll](https://github.com/Tiramisioux/piano-roll) project. C, F and G are
+  the landmarks you navigate a staff by; parity decides the shape, so a landmark
+  on a line gets a dashed rule and one in a space gets a filled band — the two can
+  never collide. The same colours tint the piano keys, shaded by register: darker
+  below middle C, brighter above it. C, F and G can each be switched off.
+- **Musical clef distance.** Optionally space the grand staff by the true pitch
+  distance between its clefs rather than the wider gap sheet music engraves, so
+  the two staves read as one continuous pitch space.
+- **Note / interval / chord readout.** Optionally name what is being asked for —
+  a single note by name, two notes by the interval, three or more by the chord —
+  and what you actually played.
+- **See your mistakes.** The note you played is drawn on the staff over the note
+  you were asked for, so a wrong answer shows the interval you missed by.
+- **A module framework.** The note trainer is module #1 in a tabbed shell. New
+  modules are drop-in files that register themselves and get their own pane, with
+  an optional split view to run two at once.
+- **A MIDI monitor module**, which doubles as the reference implementation for
+  writing a new module.
+- Alto and tenor clefs, and interval/chord levels (beta).
+
+No build step, no dependencies, no package.json. It is still a static site you
+can open from any web server.
+
+## Run it locally
+
+Web MIDI only works in a secure context, so `http://localhost` works and opening
+`index.html` over `file://` does not.
+
+```bash
+node scripts/devserver.js
+```
+
+Then open http://localhost:8123/ in Chrome, Edge or Opera. (Firefox and Safari
+do not expose the Web MIDI API, but the on-screen keyboard still works.)
+
+## Writing a new module
+
+Copy `js/modules/midi-monitor.js`, change the id and title, and add a `<script>`
+tag for it in `index.html` **before** `js/htp-panes.js`:
+
+```js
+window.HTP.register({
+    id: 'my-module',
+    title: 'My module',
+    description: 'Shown as the tab tooltip.',
+    init: function (root, api) {
+        root.innerHTML = '<p>Hello</p>';
+        api.midi.subscribe(function (bytes, source) {
+            // bytes[0] status, bytes[1] note, bytes[2] velocity
+            // source is 'virtual' (on-screen keys) or 'hardware' (real piano)
+        });
+    },
+    onShow: function (root, api) {},
+    onHide: function (root, api) {}
+});
+```
+
+`js/htp-core.js` documents the full contract. Note that `js/code.js` — the
+original trainer — is deliberately left untouched: the on-screen keyboard reaches
+it by presenting itself as a normal MIDI input port.
+
+---
+
+## Original README
+
 Hi,
 
 My name is Wojciech. I've always dreamed about being able to play an instrument and last year, at the age of 30, I decided to start to learn playing the piano. I really enjoyed and doing this makes me happy. But there are always problems with basics at the beginning. I found that understanding notes on the fly is really a tricky part. But well... every problem has to find its solution.
