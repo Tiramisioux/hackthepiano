@@ -2,10 +2,11 @@
  * free-practice — a grand staff with no exercise attached: it simply shows the
  * notes you are playing, named, with the interval or chord they spell.
  *
- * Play one note and its name appears, large. Hold it and add another and the
- * interval appears underneath; a third and it is named as a chord. Notes linger
- * briefly after release, so a rolled chord still reads as one chord rather than
- * three separate notes.
+ * Play one note and it appears in the middle of the staff, named, large. Play
+ * another and the first slides left to make room, so the staff reads as a
+ * history of what you have played. Notes played together — held at the same
+ * time, or within a couple of hundred milliseconds of each other — stay in one
+ * group and are named as an interval or a chord instead of sliding apart.
  *
  * It renders its own staves from the notation primitives js/code.js exposes on
  * HTP.notation, so the geometry, glyphs, spelling and landmark markings are
@@ -14,15 +15,22 @@
 (function (window, document) {
 	'use strict';
 
-	/* How long a released note keeps sounding, so notes played in quick
-	 * succession still group into one interval or chord. */
-	var RELEASE_LINGER_MS = 220;
+	/* Notes arriving within this window of the group's first note join it, so a
+	 * rolled chord reads as one chord rather than three separate notes. A group
+	 * also stays open for as long as any of its notes is still held. */
+	var GROUP_WINDOW_MS = 220;
+
+	/* Horizontal step between groups, and how many to keep before the oldest
+	 * falls off the left. */
+	var GROUP_SPACING_EM = 2.0;
+	var GROUP_WIDTH_EM = 2.4;
+	var MAX_GROUPS = 16;
 
 	var CLEF_IDS = ['treble', 'bass'];
 
-	var held = {};                 /* midi note -> true while sounding   */
-	var releaseTimers = {};        /* midi note -> pending removal timer */
-	var staves = {};               /* clef id  -> jQuery .staff element  */
+	/* Newest group first. Each is {sounds: [], startedAt, held: {}}. */
+	var groups = [];
+	var staves = {};               /* clef id -> jQuery .staff element */
 	var readoutEl = null;
 	var unsubscribe = null;
 
@@ -67,43 +75,53 @@
 
 	/* ---------------------------------------------------------------- notes */
 
-	function sounding() {
-		return Object.keys(held).map(Number).sort(function (a, b) { return a - b; });
-	}
-
+	/*
+	 * Draw every group. Index 0 sits in the middle of the staff and each older
+	 * group is one step further left, so a new note pushes the history along.
+	 * A group that spans both staves uses the same offset on each, so its
+	 * noteheads stay vertically aligned.
+	 */
 	function render() {
-		var sounds = sounding();
-
-		/* Group the sounding notes onto whichever staff reads them best. */
-		var byClef = {};
-		CLEF_IDS.forEach(function (id) { byClef[id] = []; });
-		sounds.forEach(function (sound) {
-			byClef[notation().bestClef(sound, CLEF_IDS)].push(sound);
-		});
-
 		CLEF_IDS.forEach(function (clefId) {
 			staves[clefId].find('.htp-free-note').remove();
-			if (!byClef[clefId].length) return;
-
-			var symbol = $('<div class="symbol note visible htp-free-note"></div>');
-			var topLedgers = 0;
-			var bottomLedgers = 0;
-
-			byClef[clefId].forEach(function (sound) {
-				var built = notation().buildNoteGlyph(clefId, sound);
-				if (!built) return;
-				symbol.append(built.glyph);
-				var ledgers = notation().ledgerLineCount(built.shift);
-				topLedgers = Math.max(topLedgers, ledgers);
-				bottomLedgers = Math.min(bottomLedgers, ledgers);
-			});
-
-			notation().addLedgerLines(symbol, topLedgers);
-			notation().addLedgerLines(symbol, bottomLedgers);
-			staves[clefId].append(symbol);
 		});
 
-		updateReadout(sounds);
+		groups.forEach(function (group, index) {
+			var offsetEm = (GROUP_WIDTH_EM / 2) + (index * GROUP_SPACING_EM);
+			var left = 'calc(50% - ' + offsetEm + 'em)';
+
+			var byClef = {};
+			CLEF_IDS.forEach(function (id) { byClef[id] = []; });
+			group.sounds.forEach(function (sound) {
+				byClef[notation().bestClef(sound, CLEF_IDS)].push(sound);
+			});
+
+			CLEF_IDS.forEach(function (clefId) {
+				if (!byClef[clefId].length) return;
+
+				var symbol = $('<div class="symbol note visible htp-free-note"></div>')
+					.css({left: left});
+				if (index > 0) symbol.addClass('htp-free-note--past');
+
+				var topLedgers = 0;
+				var bottomLedgers = 0;
+
+				byClef[clefId].forEach(function (sound) {
+					var built = notation().buildNoteGlyph(clefId, sound);
+					if (!built) return;
+					symbol.append(built.glyph);
+					var ledgers = notation().ledgerLineCount(built.shift);
+					topLedgers = Math.max(topLedgers, ledgers);
+					bottomLedgers = Math.min(bottomLedgers, ledgers);
+				});
+
+				notation().addLedgerLines(symbol, topLedgers);
+				notation().addLedgerLines(symbol, bottomLedgers);
+				staves[clefId].append(symbol);
+			});
+		});
+
+		updateReadout(groups.length ? groups[0].sounds : []);
 	}
 
 	function updateReadout(sounds) {
@@ -114,6 +132,7 @@
 			return;
 		}
 
+
 		var described = notation().describeSounds(sounds);
 		var html = '<div class="htp-readout__primary">' + described.primary + '</div>';
 		if (described.secondary)
@@ -121,22 +140,32 @@
 		readoutEl.html(html);
 	}
 
+	/*
+	 * A note joins the newest group while that group is still sounding, or while
+	 * it is still within the grouping window — that is what makes a chord one
+	 * group. Otherwise it starts a new group, pushing the history left.
+	 */
 	function noteOn(sound) {
-		if (releaseTimers[sound]) {
-			window.clearTimeout(releaseTimers[sound]);
-			delete releaseTimers[sound];
+		var now = new Date().getTime();
+		var newest = groups[0];
+		var stillHeld = newest && Object.keys(newest.held).length > 0;
+		var withinWindow = newest && (now - newest.startedAt) < GROUP_WINDOW_MS;
+
+		if (newest && (stillHeld || withinWindow)) {
+			if (newest.sounds.indexOf(sound) === -1) newest.sounds.push(sound);
+		} else {
+			groups.unshift({sounds: [sound], startedAt: now, held: {}});
+			while (groups.length > MAX_GROUPS) groups.pop();
 		}
-		held[sound] = true;
+
+		groups[0].sounds.sort(function (a, b) { return a - b; });
+		groups[0].held[sound] = true;
 		render();
 	}
 
 	function noteOff(sound) {
-		if (releaseTimers[sound]) return;
-		releaseTimers[sound] = window.setTimeout(function () {
-			delete releaseTimers[sound];
-			delete held[sound];
-			render();
-		}, RELEASE_LINGER_MS);
+		groups.forEach(function (group) { delete group.held[sound]; });
+		render();
 	}
 
 	/* ------------------------------------------------------------- lifecycle */
@@ -174,11 +203,7 @@
 				unsubscribe();
 				unsubscribe = null;
 			}
-			held = {};
-			Object.keys(releaseTimers).forEach(function (sound) {
-				window.clearTimeout(releaseTimers[sound]);
-				delete releaseTimers[sound];
-			});
+			groups = [];
 			render();
 		}
 	});

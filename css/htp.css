@@ -460,11 +460,6 @@ div.staff div.symbol.note svg.played.correct { --htp-played-colour: #1e9e5a; }
  * that staff. Unlike the trainer's notes it never scrolls, so it sits at a fixed
  * x and does not clip — a sharp or flat glyph is wider than a bare notehead.
  */
-div.staff div.symbol.note.htp-free-note {
-	left: 2.6em;
-	width: 2.4em;
-	overflow: visible;
-}
 
 .htp-options__value {
 	min-width: 2em;
@@ -477,3 +472,14 @@ div.staff div.symbol.note.htp-free-note {
    them. The trainer keeps its opaque clef, which is what masks notes and an
    outgoing clef as they scroll past. */
 .htp-free div.staff div.symbol.clef { background: transparent; }
+
+/* Free practice lays its notes out as a history: the newest group sits in the
+   middle of the staff and older ones step left until they fall off the edge.
+   Positions are set inline by js/modules/free-practice.js. */
+div.staff div.symbol.note.htp-free-note {
+	width: 2.4em;
+	overflow: visible;
+	transition: left 0.18s ease;
+}
+
+div.staff div.symbol.note.htp-free-note--past { opacity: 0.55; }
