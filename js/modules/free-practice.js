@@ -181,6 +181,10 @@
 				if (key === 'musicalClefDistance' || key === 'lineMarkers'
 					|| key.indexOf('landmark') === 0)
 					applyOptions();
+				/* The trainer's readout refreshes on a timer; this one only
+				 * redraws on a note, so it has to be told. */
+				if (key === 'octaveNumbers')
+					updateReadout(group);
 			});
 			api.onMarkersChanged(applyOptions);
 		},

@@ -1581,7 +1581,11 @@ $(function(){
 	};
 	var nameForSound = function(sound){
 		var entry = spellingForSound(sound);
-		return (entry && entry.name) ? (entry.name + soundOctave(sound)) : '?';
+		if (!entry || !entry.name)
+			return '?';
+		var withOctave = !window.HTP || !window.HTP.settings
+			|| window.HTP.settings.octaveNumbers !== false;
+		return withOctave ? (entry.name + soundOctave(sound)) : entry.name;
 	};
 	var intervalName = function(semitones){
 		var span = Math.abs(semitones);
