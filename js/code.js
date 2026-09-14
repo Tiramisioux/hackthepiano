@@ -1259,18 +1259,23 @@ $(function(){
 		return $('#staff1').closest('.staffsContainer').find('.staffContainer');
 	};
 	/*
-	 * Show only the staves this level actually uses.
+	 * Show a staff only when this level uses it AND its clef is switched on.
 	 *
-	 * index.html always contains two, but a level like Beginner 1 lists one, so
-	 * the other was drawn as an empty set of lines with no clef — which reads as
-	 * a second stave you are somehow meant to use. The original app had the same
-	 * quirk; it just showed less because the lines were fainter.
+	 * index.html always contains two staves, but a level like Beginner 1 lists
+	 * one, so the other was drawn as an empty set of lines with no clef — which
+	 * reads as a second stave you are somehow meant to use.
+	 *
+	 * Turning a clef off takes its whole staff with it, lines and all, rather
+	 * than leaving a headless set of lines behind.
 	 */
 	var applyStaffVisibility = function(){
 		var used = state.level.staffs.map(function(staff){ return staff.id; });
 		trainerStaffContainers().each(function(){
 			var id = $('.staff', this).attr('id');
-			$(this).toggle(used.indexOf(id) !== -1);
+			var inLevel = used.indexOf(id) !== -1;
+			var clefOn = !staffs[id] || !window.HTP
+				|| window.HTP.clefEnabled(staffs[id].clef);
+			$(this).toggle(inLevel && clefOn);
 		});
 	};
 	var applyStaffSpacing = function(){
@@ -1323,6 +1328,7 @@ $(function(){
 		});
 		
 		applyStaffSpacing();
+		applyStaffVisibility();
 		applyLineMarkers();
 		
 		return true;
@@ -2034,6 +2040,7 @@ $(function(){
 		window.HTP.applyStaffSpacing = applyStaffSpacing;
 		window.HTP.applyLineMarkers = applyLineMarkers;
 		window.HTP.applyNoteColours = applyNoteColours;
+		window.HTP.applyStaffVisibility = applyStaffVisibility;
 		
 		/*
 		 * Notation primitives for modules that draw their own staves — see

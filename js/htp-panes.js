@@ -280,20 +280,13 @@
 	var STAFF_SIZE_STEP = 6;
 
 	/*
-	 * Hide or show each clef glyph on its own. Any key signature drawn beside it
-	 * stays — that is a different piece of information, and losing it would
-	 * change what the notes mean rather than just what you are told.
+	 * Turning a clef off removes its whole staff — lines and all — not just the
+	 * glyph. js/code.js owns the trainer's staves; a module that draws its own
+	 * follows the same setting from its own applyOptions().
 	 */
-	var CLEF_TOGGLES = [
-		{ clef: 'treble', setting: 'showClefTreble' },
-		{ clef: 'bass',   setting: 'showClefBass' }
-	];
-
 	function applyClefVisibility() {
-		CLEF_TOGGLES.forEach(function (toggle) {
-			document.body.classList.toggle('htp-hide-clef-' + toggle.clef,
-				window.HTP.settings[toggle.setting] === false);
-		});
+		if (typeof window.HTP.applyStaffVisibility === 'function')
+			window.HTP.applyStaffVisibility();
 	}
 
 	function clampStaffSize(value) {

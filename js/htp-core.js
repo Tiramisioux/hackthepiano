@@ -361,6 +361,13 @@ window.HTP = (function (window, document) {
 		landmarkEnabled: function (name) {
 			return settings['landmark' + name] !== false;
 		},
+		/* Is this clef switched on? Clefs with no setting of their own — alto,
+		 * tenor — are always on. */
+		clefEnabled: function (clefId) {
+			if (!clefId) return true;
+			var key = 'showClef' + clefId.charAt(0).toUpperCase() + clefId.slice(1);
+			return settings[key] !== false;
+		},
 		/* Landmark for a pitch class (0 = C), or null. Pass an octave to get the
 		 * register-shaded colour rather than the flat palette one. */
 		landmarkForPitchClass: function (pitchClass, octave) {
