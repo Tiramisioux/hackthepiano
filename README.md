@@ -33,6 +33,10 @@ Learn to read notes on the fly. Play the note you see, as fast as you can.
 - **A module framework.** The note trainer is module #1 in a tabbed shell. New
   modules are drop-in files that register themselves and get their own pane, with
   an optional split view to run two at once.
+- **A free-practice module**: a grand staff with no exercise attached. It shows
+  the notes you are playing, large, with the interval or chord they spell
+  underneath. Notes linger briefly after release, so a rolled chord still reads
+  as one chord.
 - **A MIDI monitor module**, which doubles as the reference implementation for
   writing a new module.
 - Alto and tenor clefs, and interval/chord levels (beta).

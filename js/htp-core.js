@@ -277,6 +277,7 @@ window.HTP = (function (window, document) {
 	} catch (e) { /* private mode / corrupt value: keep the defaults */ }
 
 	var settingListeners = [];
+	var markerListeners = [];
 
 	function setSetting(key, value) {
 		settings[key] = value;
@@ -368,6 +369,15 @@ window.HTP = (function (window, document) {
 			return null;
 		},
 		setSetting: setSetting,
-		onSettingChange: function (fn) { settingListeners.push(fn); }
+		onSettingChange: function (fn) { settingListeners.push(fn); },
+		/* js/code.js calls notifyMarkersChanged() whenever it redraws its own
+		 * landmark layer, so modules that render their own staves can follow. */
+		onMarkersChanged: function (fn) { markerListeners.push(fn); },
+		notifyMarkersChanged: function () {
+			markerListeners.slice().forEach(function (fn) {
+				try { fn(); }
+				catch (e) { console.error('[HTP] marker listener failed', e); }
+			});
+		}
 	};
 })(window, document);

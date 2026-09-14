@@ -31,6 +31,32 @@
   			<button type="button" class="htp-iconbtn" id="htpSplit" aria-pressed="false" title="Show two modules at once">Split</button>
   		</header>
 
+  		<div class="htp-optionsbar">
+  	   	<div class="htp-options">
+  	   		<label title="Space the staves by the true pitch distance between their clefs instead of the wider gap sheet music conventionally engraves">
+  	   			<input type="checkbox" id="optMusicalClefDistance"> Musical clef distance
+  	   		</label>
+  	   		<label title="Name the note being asked for — or the interval for two notes, the chord for three or more">
+  	   			<input type="checkbox" id="optShowNoteNames"> Note names
+  	   		</label>
+  	   		<label title="Mark the landmarks on the staff — a dashed rule where one falls on a line, a filled band where one falls in a space">
+  	   			<input type="checkbox" id="optLineMarkers"> Line markers
+  	   		</label>
+  	   		<label title="Tint the landmark keys on the on-screen keyboard to match">
+  	   			<input type="checkbox" id="optColourKeys"> Colour keys
+  	   		</label>
+  	   		<label title="Print F and G key names on the keyboard too, the way C1, C2 … always are">
+  	   			<input type="checkbox" id="optKeyNames"> Key names
+  	   		</label>
+  	   		<span class="htp-options__group">
+  	   			<span class="htp-options__grouplabel">Landmarks</span>
+  	   			<label title="Show the C landmarks on the staff and on the keys"><input type="checkbox" id="optLandmarkC"> C</label>
+  	   			<label title="Show the F landmarks on the staff and on the keys"><input type="checkbox" id="optLandmarkF"> F</label>
+  	   			<label title="Show the G landmarks on the staff and on the keys"><input type="checkbox" id="optLandmarkG"> G</label>
+  	   		</span>
+  	   	</div>
+  		</div>
+
   		<main class="htp-panes" id="htpPanes" data-layout="single">
   			<!-- Module #1: the original note trainer. Its markup must stay here in
   			     index.html — js/code.js resolves #staff1/#staff2/#level globally at
@@ -42,29 +68,6 @@
 				   		<a class="btn btn-info" href="#" role="button" data-toggle="modal" data-target="#help">Help</a>
 				   	</div>
 				   	<div class="levelsContainer">Select difficulty level: <select id="level"></select></div>
-				   	<div class="htp-options">
-				   		<label title="Space the staves by the true pitch distance between their clefs instead of the wider gap sheet music conventionally engraves">
-				   			<input type="checkbox" id="optMusicalClefDistance"> Musical clef distance
-				   		</label>
-				   		<label title="Name the note being asked for — or the interval for two notes, the chord for three or more">
-				   			<input type="checkbox" id="optShowNoteNames"> Note names
-				   		</label>
-				   		<label title="Mark the landmarks on the staff — a dashed rule where one falls on a line, a filled band where one falls in a space">
-				   			<input type="checkbox" id="optLineMarkers"> Line markers
-				   		</label>
-				   		<label title="Tint the landmark keys on the on-screen keyboard to match">
-				   			<input type="checkbox" id="optColourKeys"> Colour keys
-				   		</label>
-				   		<label title="Print F and G key names on the keyboard too, the way C1, C2 … always are">
-				   			<input type="checkbox" id="optKeyNames"> Key names
-				   		</label>
-				   		<span class="htp-options__group">
-				   			<span class="htp-options__grouplabel">Landmarks</span>
-				   			<label title="Show the C landmarks on the staff and on the keys"><input type="checkbox" id="optLandmarkC"> C</label>
-				   			<label title="Show the F landmarks on the staff and on the keys"><input type="checkbox" id="optLandmarkF"> F</label>
-				   			<label title="Show the G landmarks on the staff and on the keys"><input type="checkbox" id="optLandmarkG"> G</label>
-				   		</span>
-				   	</div>
 			   	</div>
 			  	<div class="staffsContainer">
 				  	<div class="staffContainer">
@@ -146,6 +149,7 @@
     <script src="css/bootstrap-3.3.7/js/bootstrap.min.js"></script>
     <script src="js/code.js" type="text/javascript"></script>
     <script src="js/modules/note-trainer.js" type="text/javascript"></script>
+    <script src="js/modules/free-practice.js" type="text/javascript"></script>
     <script src="js/modules/midi-monitor.js" type="text/javascript"></script>
     <script src="js/htp-keyboard.js" type="text/javascript"></script>
     <script src="js/htp-panes.js" type="text/javascript"></script>

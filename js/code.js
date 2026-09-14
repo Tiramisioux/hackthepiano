@@ -1150,18 +1150,19 @@ $(function(){
 	var markerTopEm = function(shift){
 		return (940 - 120 * shift) / 1066.201;
 	};
-	var applyLineMarkers = function(){
-		$('.htp-markers').remove();
+	/* Draw the landmark layer into one staff element for one clef. Shared by the
+	 * trainer and by any module that renders its own staves. */
+	var renderStaffMarkers = function(staffEl, clefId){
+		$('> .htp-markers', staffEl).remove();
 		
 		if (!window.HTP || !window.HTP.settings || !window.HTP.settings.lineMarkers)
 			return;
+		if (!clefId || !clefs[clefId])
+			return;
 		
 		var landmarks = window.HTP.landmarks;
-		state.level.staffs.forEach(function(staff){
-			if (!staff.clef)
-				return;
-			
-			var clefShift = clefs[staff.clef].shift;
+		{
+			var clefShift = clefs[clefId].shift;
 			var layer = $('<div class="htp-markers"></div>');
 			
 			for (var shift = MARKER_SHIFT_BOTTOM; shift <= MARKER_SHIFT_TOP; shift++)
@@ -1204,8 +1205,16 @@ $(function(){
 				}
 			}
 			
-			$('#' + staff.id).prepend(layer);
+			staffEl.prepend(layer);
+		}
+	};
+	var applyLineMarkers = function(){
+		state.level.staffs.forEach(function(staff){
+			renderStaffMarkers($('#' + staff.id), staff.clef);
 		});
+		/* Let modules that render their own staves redraw theirs too. */
+		if (window.HTP && typeof window.HTP.notifyMarkersChanged === 'function')
+			window.HTP.notifyMarkersChanged();
 	};
 	var applyStaffSpacing = function(){
 		var containers = $('.staffContainer');
@@ -1445,7 +1454,7 @@ $(function(){
 		
 		var shiftInClef = entry.clefs[clef.id].shift;
 		var added = [];
-		var ghost = $(symbols.notes[entry.decorator])
+		var ghost = $(glyphForDecorator(entry.decorator))
 			.addClass('played')
 			.addClass(isCorrect ? 'correct' : 'wrong')
 			.css({top: (-shiftInClef * settings.shiftSize)+'em'});
@@ -1553,22 +1562,44 @@ $(function(){
 		}
 		return null;
 	};
+	/*
+	 * Describe a set of notes as two lines: the names themselves, large, and
+	 * what they add up to underneath — the interval for a pair, the chord for
+	 * three or more.
+	 */
 	var describeNotes = function(noteObjs){
 		var sounds = noteObjs.map(function(n){ return n.sound; })
 			.sort(function(a, b){ return a - b; });
+		var names = sounds.map(nameForSound);
 		
-		if (sounds.length === 1)
-			return nameForSound(sounds[0]);
+		if (sounds.length <= 1)
+			return {primary: names.join(''), secondary: ''};
 		
 		if (sounds.length === 2)
-		{
-			return intervalName(sounds[1] - sounds[0])
-				+ ' (' + nameForSound(sounds[0]) + '–' + nameForSound(sounds[1]) + ')';
-		}
+			return {primary: names.join('  '), secondary: intervalName(sounds[1] - sounds[0])};
 		
-		var chord = chordName(sounds);
-		var spelled = sounds.map(nameForSound).join(' ');
-		return chord ? (chord + ' (' + spelled + ')') : spelled;
+		return {primary: names.join('  '), secondary: chordName(sounds) || ''};
+	};
+	
+	/*
+	 * Build a notehead for one pitch in one clef, ready to drop into a .staff.
+	 * Returns null for a pitch the note table cannot spell.
+	 */
+	/* A natural sign only earns its place when it cancels a key signature. On a
+	 * played-note readout it is noise, so a natural draws as a bare notehead —
+	 * sharps and flats keep their accidental, which is what tells them apart. */
+	var glyphForDecorator = function(decorator){
+		return decorator == decorators.natural ? symbols.notes.none : symbols.notes[decorator];
+	};
+	var buildNoteGlyph = function(clefId, sound){
+		var entry = spellingForSound(sound);
+		if (!entry || !clefs[clefId])
+			return null;
+		
+		var shiftInClef = entry.clefs[clefId].shift;
+		var glyph = $(glyphForDecorator(entry.decorator))
+			.css({top: (-shiftInClef * settings.shiftSize) + 'em'});
+		return {glyph: glyph, shift: shiftInClef, entry: entry};
 	};
 	
 	var lastPlayed = null;
@@ -1586,13 +1617,18 @@ $(function(){
 		var parts = [];
 		var index = findFirstNoteIndex();
 		if (index !== null && state.activeNotes[index].notes && state.activeNotes[index].notes.length)
-			parts.push('<span class="htp-readout__target">' + describeNotes(state.activeNotes[index].notes) + '</span>');
+		{
+			var described = describeNotes(state.activeNotes[index].notes);
+			parts.push('<div class="htp-readout__primary">' + described.primary + '</div>');
+			if (described.secondary)
+				parts.push('<div class="htp-readout__secondary">' + described.secondary + '</div>');
+		}
 		
 		if (lastPlayed && (new Date().getTime() - lastPlayed.at) < 1400)
 		{
-			parts.push('<span class="htp-readout__played htp-readout__played--'
+			parts.push('<div class="htp-readout__played htp-readout__played--'
 				+ (lastPlayed.correct ? 'correct' : 'wrong') + '">you played '
-				+ nameForSound(lastPlayed.sound) + '</span>');
+				+ nameForSound(lastPlayed.sound) + '</div>');
 		}
 		
 		el.html(parts.join(''));
@@ -1753,6 +1789,58 @@ $(function(){
 	{
 		window.HTP.applyStaffSpacing = applyStaffSpacing;
 		window.HTP.applyLineMarkers = applyLineMarkers;
+		
+		/*
+		 * Notation primitives for modules that draw their own staves — see
+		 * js/modules/free-practice.js. Everything here is read-only apart from
+		 * the render helpers, which only touch the element you hand them.
+		 */
+		window.HTP.notation = {
+			shiftSize: settings.shiftSize,
+			clefs: clefs,
+			symbols: symbols,
+			/* How far apart two staff boxes must sit to be musically continuous,
+			 * expressed as the margin correction on the lower one. */
+			staffOffsetEm: function(upperClefId, lowerClefId){
+				if (!clefs[upperClefId] || !clefs[lowerClefId])
+					return 0;
+				return (clefs[lowerClefId].shift - clefs[upperClefId].shift) * settings.shiftSize - 2;
+			},
+			buildNoteGlyph: buildNoteGlyph,
+			buildClefSymbol: function(clefId){
+				if (!clefs[clefId])
+					return null;
+				return $('<div class="symbol clef ' + clefId + '"></div>')
+					.append(symbols.clefs[clefId]);
+			},
+			addLedgerLines: addAdditionalLines,
+			ledgerLineCount: getNumberOfAdditionalLines,
+			renderStaffMarkers: renderStaffMarkers,
+			nameForSound: nameForSound,
+			describeSounds: function(sounds){
+				return describeNotes(sounds.map(function(s){ return {sound: s}; }));
+			},
+			/* Which of a pair of clefs should carry this pitch: the one whose
+			 * staff position is closest to the middle line. */
+			bestClef: function(sound, clefIds){
+				var entry = spellingForSound(sound);
+				if (!entry)
+					return clefIds[0];
+				var best = clefIds[0];
+				var bestDistance = Infinity;
+				clefIds.forEach(function(id){
+					if (!entry.clefs[id])
+						return;
+					var distance = Math.abs(entry.clefs[id].shift);
+					if (distance < bestDistance)
+					{
+						bestDistance = distance;
+						best = id;
+					}
+				});
+				return best;
+			}
+		};
 	}
 	
 	Object.keys(levels).forEach(function(l){
