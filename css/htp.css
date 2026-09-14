@@ -578,13 +578,5 @@ div.staff div.lines .htp-staffline {
 	border-top: 1px solid #000;
 }
 
-/*
- * Turning a clef off hides its glyph but keeps whatever the trainer drew beside
- * it — the key signature accidentals live in the same symbol and are a different
- * piece of information. The clef glyph is always the symbol's first child; the
- * accidentals are appended after it.
- */
-body.htp-hide-clef-treble div.staff div.symbol.clef.treble > svg:first-child,
-body.htp-hide-clef-bass div.staff div.symbol.clef.bass > svg:first-child {
-	display: none;
-}
+/* Turning a clef off hides its whole staff, which js/code.js and the modules
+   that draw their own staves each handle — there is nothing to do in CSS. */

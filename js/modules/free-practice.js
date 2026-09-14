@@ -60,16 +60,31 @@
 		readoutEl = $(root).find('.htp-free__readout');
 	}
 
+	/* Which clefs are switched on. Possibly none — the trainer goes empty in that
+	 * case too, and silently overriding the setting would be worse than honouring
+	 * it. render() draws nothing rather than guessing where a note should go. */
+	function activeClefs() {
+		return CLEF_IDS.filter(function (id) { return window.HTP.clefEnabled(id); });
+	}
+
 	/* Follow the same options the trainer honours. */
 	function applyOptions() {
+		var active = activeClefs();
+
 		CLEF_IDS.forEach(function (clefId) {
-			notation().renderStaffMarkers(staves[clefId], clefId);
+			var container = staves[clefId].closest('.staffContainer');
+			var on = active.indexOf(clefId) !== -1;
+			container.toggle(on);
+			if (on) notation().renderStaffMarkers(staves[clefId], clefId);
 		});
 
+		/* Only meaningful with both staves up — the offset is the distance
+		 * between them. */
 		var lower = staves[CLEF_IDS[1]].closest('.staffContainer');
-		lower.css('margin-top', window.HTP.settings.musicalClefDistance
-			? notation().staffOffsetEm(CLEF_IDS[0], CLEF_IDS[1]) + 'em'
-			: '');
+		lower.css('margin-top',
+			(window.HTP.settings.musicalClefDistance && active.length === 2)
+				? notation().staffOffsetEm(CLEF_IDS[0], CLEF_IDS[1]) + 'em'
+				: '');
 	}
 
 	/* ---------------------------------------------------------------- notes */
@@ -89,13 +104,21 @@
 			return;
 		}
 
+		/* Notes go only to staves that are actually showing, so switching the bass
+		 * clef off reads everything on the treble staff with ledger lines rather
+		 * than dropping the low notes. */
+		var active = activeClefs();
+		if (!active.length) {
+			updateReadout(group);
+			return;
+		}
 		var byClef = {};
-		CLEF_IDS.forEach(function (id) { byClef[id] = []; });
+		active.forEach(function (id) { byClef[id] = []; });
 		group.sounds.forEach(function (sound) {
-			byClef[notation().bestClef(sound, CLEF_IDS)].push(sound);
+			byClef[notation().bestClef(sound, active)].push(sound);
 		});
 
-		CLEF_IDS.forEach(function (clefId) {
+		active.forEach(function (clefId) {
 			if (!byClef[clefId].length) return;
 
 			var symbol = $('<div class="symbol note visible htp-free-note"></div>');
@@ -188,6 +211,10 @@
 				/* Note colour is baked into the glyph at build time, so redraw. */
 				if (key === 'colourNotes' || key.indexOf('landmark') === 0)
 					render();
+				if (key.indexOf('showClef') === 0) {
+					applyOptions();
+					render();
+				}
 			});
 			api.onMarkersChanged(applyOptions);
 		},
