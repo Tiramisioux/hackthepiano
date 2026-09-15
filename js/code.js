@@ -1249,6 +1249,113 @@ $(function(){
 			.attr('data-htp-artwork', artworkCentreEm)
 			.css({top: glyphTopEm(shift, artworkCentreEm) + 'em'});
 	};
+	/* ----------------------------------------------------------- quarter notes
+	 *
+	 * The artwork draws a hollow head and no stem, which is a half note. A
+	 * quarter note is that same head filled, with a stem. Both are drawn inside
+	 * the glyph's own 2em box, in the artwork's own units: 1066.201 units to the
+	 * box, 60 to a shift step, the head's painted centre at y 315.305.
+	 *
+	 * Each glyph carries its own box and is placed by its own shift, so a stem
+	 * of a fixed length in artwork units is the same 3.5 spaces wherever the
+	 * note sits, and can never be clipped by the box it is drawn in.
+	 *
+	 * The head is slanted, so its right-hand extremity sits 12.2 units ABOVE
+	 * that centre and its left-hand one the same distance below — measured off
+	 * the painted path with isPointInFill, not read off the coordinates. A stem
+	 * run to the centre would show a stub of bare stem beyond the ink; it stops
+	 * at the extremity it hangs from instead.
+	 */
+	var UNITS_PER_SHIFT = 60;
+	var NOTEHEAD_CENTRE_UNITS = 315.305;
+	var NOTEHEAD_WIDTH_UNITS = 141.012;
+	var NOTEHEAD_TIP_UNITS = 12.2;
+	var STEM_LENGTH_UNITS = 7 * UNITS_PER_SHIFT;   /* 3.5 staff spaces */
+	var STEM_WIDTH_UNITS = 15;
+	var SVG_NS = 'http://www.w3.org/2000/svg';
+	
+	var quarterNotesOn = function(){
+		return !!(window.HTP && window.HTP.settings && window.HTP.settings.quarterNotes);
+	};
+	/*
+	 * Draw one notehead as a quarter note, or put it back to the half note the
+	 * artwork draws by default. `up` is the stem direction.
+	 *
+	 * The head is the LAST <path> of every note glyph — where there is an
+	 * accidental it is an earlier path, drawn to the head's left — and it is two
+	 * subpaths: the outer oval, and the counter that makes it hollow. Dropping
+	 * the counter fills it. The hollow original is kept on the element, so
+	 * turning the option off restores it rather than approximating it.
+	 */
+	var setQuarterNote = function(el, up){
+		var svg = $(el);
+		var head = svg.find('path').last();
+		if (!head.length)
+			return;
+		
+		var hollow = head.attr('data-htp-hollow') || head.attr('d');
+		head.attr('data-htp-hollow', hollow);
+		svg.find('.htp-stem').remove();
+		
+		if (!quarterNotesOn())
+		{
+			head.attr('d', hollow);
+			return;
+		}
+		
+		var counter = hollow.indexOf('M', 1);
+		head.attr('d', counter > 0 ? hollow.slice(0, counter) : hollow);
+		
+		/* The head is flush with the right edge of every note glyph's viewBox,
+		 * and every glyph is right-aligned within its symbol, so measuring the
+		 * stem from that edge puts the stems of a chord on one x. */
+		var box = (svg.attr('viewBox') || '').split(/[\s,]+/).map(parseFloat);
+		var right = box[0] + box[2];
+		var stem = document.createElementNS(SVG_NS, 'rect');
+		stem.setAttribute('class', 'htp-stem');
+		stem.setAttribute('x', up ? right - STEM_WIDTH_UNITS : right - NOTEHEAD_WIDTH_UNITS);
+		stem.setAttribute('width', STEM_WIDTH_UNITS);
+		stem.setAttribute('y', up ? NOTEHEAD_CENTRE_UNITS - STEM_LENGTH_UNITS
+			: NOTEHEAD_CENTRE_UNITS + NOTEHEAD_TIP_UNITS);
+		stem.setAttribute('height', STEM_LENGTH_UNITS - NOTEHEAD_TIP_UNITS);
+		svg[0].appendChild(stem);
+	};
+	/*
+	 * Notes struck together share one stem, so the direction belongs to the
+	 * symbol rather than to each note: the note farthest from the middle line
+	 * chooses it, and a tie — or the middle line itself — takes a stem down.
+	 * Each head still draws its own stem, but they sit on one x and meet end to
+	 * end, so a chord reads as the single stem it should be.
+	 */
+	var applyStems = function(glyphs){
+		var els = $(glyphs);
+		if (!els.length)
+			return els;
+		
+		var shifts = els.map(function(){
+			return parseFloat($(this).attr('data-htp-shift'));
+		}).get().filter(isFinite);
+		var up = shifts.length > 0
+			&& (Math.max.apply(null, shifts) + Math.min.apply(null, shifts)) < 0;
+		els.each(function(){ setQuarterNote(this, up); });
+		return els;
+	};
+	/*
+	 * Redraw the notes already on a staff, so the option takes effect on what is
+	 * up now rather than only on the notes drawn after it. It reaches every
+	 * staff on the page, a module's as well as the trainer's: a note is a note
+	 * on both, and free practice has no reason to keep the old shape.
+	 *
+	 * A played ghost is not part of the chord it is drawn over, so it picks its
+	 * own direction rather than joining the target's.
+	 */
+	var applyNoteShape = function(){
+		$('.symbol.note').each(function(){
+			var glyphs = $('svg', this).not('.line');
+			applyStems(glyphs.not('.played'));
+			glyphs.filter('.played').each(function(){ applyStems(this); });
+		});
+	};
 	var repositionGlyphs = function(){
 		$('[data-htp-shift]').each(function(){
 			var el = $(this);
@@ -1540,6 +1647,9 @@ $(function(){
 			symbol.append(noteGlyph);
 			activeNote.notes.push(note);
 		});
+		/* Stems once every head is in, so the direction is the chord's and not
+		 * each note's. Ledger lines come after, so this sees noteheads only. */
+		applyStems($('svg', symbol));
 		addAdditionalLines(symbol, numberOfAdditionalTopLines);
 		addAdditionalLines(symbol, numberOfAdditionalBottomLines);
 		addSymbol(staffEl, activeNote);
@@ -1685,6 +1795,7 @@ $(function(){
 			.addClass(isCorrect ? 'correct' : 'wrong')
 			.attr('data-htp-shift', shiftInClef).attr('data-htp-artwork', NOTEHEAD_CENTRE_EM)
 			.css({top: glyphTopEm(shiftInClef, NOTEHEAD_CENTRE_EM) + 'em'});
+		applyStems(ghost);
 		activeNote.symbol.append(ghost);
 		added.push(ghost);
 		
@@ -1983,6 +2094,10 @@ $(function(){
 		if (colour)
 			glyph.css('fill', colour);
 		
+		/* One note, so it stems on its own. A module drawing several as one
+		 * chord calls HTP.notation.applyStems over the group afterwards. */
+		applyStems(glyph);
+		
 		return {glyph: glyph, shift: shiftInClef, entry: entry};
 	};
 	
@@ -2206,6 +2321,7 @@ $(function(){
 		window.HTP.applyStaffSpacing = applyStaffSpacing;
 		window.HTP.applyLineMarkers = applyLineMarkers;
 		window.HTP.applyNoteColours = applyNoteColours;
+		window.HTP.applyNoteShape = applyNoteShape;
 		window.HTP.applyStaffVisibility = applyStaffVisibility;
 		window.HTP.relayoutForGrid = relayoutForGrid;
 		
@@ -2233,6 +2349,9 @@ $(function(){
 				return (clefs[lowerClefId].shift - clefs[upperClefId].shift) * grid.stepEm - 2;
 			},
 			buildNoteGlyph: buildNoteGlyph,
+			/* Give a set of noteheads one shared stem direction. Hand it every
+			 * head of a chord at once; a lone note can stem itself. */
+			applyStems: applyStems,
 			buildClefSymbol: function(clefId){
 				if (!clefs[clefId])
 					return null;
