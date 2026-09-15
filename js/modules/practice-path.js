@@ -122,7 +122,15 @@
 	 * ripe the scheduler falls through and shows it anyway. */
 	var LEARNING_STEPS = [1, 3, 8];
 	var NEW_ITEM_GAP = 3;         /* reviews between introductions               */
-	var FEEDBACK_MS = 480;        /* the only timer in the module                */
+	var FEEDBACK_MS = 480;        /* pause after an answer whose key is already up */
+	/* After you lift the key. Long enough that the green is a beat rather than a
+	 * flicker, short enough not to feel like waiting. */
+	var RELEASE_MS = 170;
+	/* A note-off can go missing — a MIDI hiccup, or a pointer lost off the edge
+	 * of an on-screen key — and without a backstop the drill would wait for a
+	 * release that never comes, with a reload the only way out. Long enough that
+	 * it never fires on a deliberate hold. */
+	var STUCK_NOTE_MS = 8000;
 	/* Where a prompt sits along the staff, in percent. A lone note is centred; a
 	 * step pair straddles the centre, so both kinds of prompt land in the same
 	 * place on the page and the eye does not have to go looking. */
@@ -682,6 +690,9 @@
 	var stageNumEl, stageNameEl, stageDetailEl, barEl, progressEl;
 	var promptNameEl, feedbackEl, statsEl, doneEl, promptEl;
 	var unsubscribe = null;
+	/* Which keys are down right now. The drill needs this to hold a correct
+	 * answer on screen until you actually let go of it. */
+	var held = {};
 
 	function notation() { return window.HTP.notation; }
 
@@ -1023,10 +1034,50 @@
 		session.answered++;
 		current.phase = PHASE_DONE;
 		updateHeader();
+		markCorrect();
 
-		window.setTimeout(function () {
+		/*
+		 * Hold the answer on screen while the key is down. A right note that
+		 * vanishes the instant it is struck gives you nothing to look at — the
+		 * whole point of turning it green is to see the note you just played
+		 * confirmed in the place you read it from. So the next prompt waits for
+		 * your hand, not for a clock.
+		 */
+		if (answerStillHeld(current)) {
+			current.awaitingRelease = true;
+			current.stuckTimer = window.setTimeout(function () {
+				advanceAfterAnswer(current, 0);
+			}, STUCK_NOTE_MS);
+			return;
+		}
+		advanceAfterAnswer(current, FEEDBACK_MS);
+	}
+
+	/* Every note of the answer that is still down. The first note of a step pair
+	 * is usually still held while the second is played, so any one of them
+	 * counts. */
+	function answerStillHeld(current) {
+		return current.item.sounds.some(function (sound) { return held[sound]; });
+	}
+
+	function advanceAfterAnswer(current, delay) {
+		if (current.advanceTimer) return;
+		window.clearTimeout(current.stuckTimer);
+		current.advanceTimer = window.setTimeout(function () {
 			if (session.current === current) advance();
-		}, FEEDBACK_MS);
+		}, delay);
+	}
+
+	/* Green on the thing you were asked to produce: the notehead on the staff, or
+	 * the name when there is no staff. The given note of a step pair stays as it
+	 * was — it was the anchor, not the question. */
+	function markCorrect() {
+		staffEl.find('.htp-pp-note')
+			.not('.htp-pp-note--given')
+			.not('.htp-pp-note--wrong')
+			.addClass('htp-pp-note--correct');
+		var value = promptNameEl.querySelector('.htp-pp__nameval');
+		if (value) value.classList.add('is-correct');
 	}
 
 	function miss(played) {
@@ -1063,6 +1114,13 @@
 				staffEl.append(ghost);
 			}
 		}
+	}
+
+	function onNoteOff(sound) {
+		var current = session.current;
+		if (!current || !current.awaitingRelease) return;
+		if (answerStillHeld(current)) return;     /* a chord or pair: wait for the last */
+		advanceAfterAnswer(current, RELEASE_MS);
 	}
 
 	function onNoteOn(sound) {
@@ -1154,12 +1212,23 @@
 			if (unsubscribe) return;
 			unsubscribe = api.midi.subscribe(function (bytes) {
 				var type = bytes[0] & 0xf0;
-				if (type === 0x90 && bytes[2] > 0) onNoteOn(bytes[1]);
+				/* `held` is updated BEFORE the handler runs, so succeed() can see
+				 * whether the key answering the prompt is still down. */
+				if (type === 0x90 && bytes[2] > 0) {
+					held[bytes[1]] = true;
+					onNoteOn(bytes[1]);
+				} else if (type === 0x80 || (type === 0x90 && bytes[2] === 0)) {
+					delete held[bytes[1]];
+					onNoteOff(bytes[1]);
+				}
 			});
 		},
 
 		onHide: function () {
 			if (unsubscribe) { unsubscribe(); unsubscribe = null; }
+			/* Key-ups that happen while the pane is hidden never reach us, so a
+			 * note held at the moment you switch away would look held forever. */
+			held = {};
 			markSessionEnd();
 		},
 
