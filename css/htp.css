@@ -806,7 +806,19 @@ div.staff div.lines .htp-staffline {
 }
 
 .htp-pp__staves { margin: 0 auto; width: 100%; }
-.htp-pp .staffContainer { overflow: visible; }
+/*
+ * Kill the clef's white background, exactly as free practice does.
+ *
+ * .symbol inherits padding-top/bottom: 100em, so at a 75px staff the clef is an
+ * opaque white box 15000px tall — and at z-index 10 it paints straight through
+ * the pane, whiting out a column of the header and the footer either side of
+ * the staff. "Stage 1" showed as "ST".
+ *
+ * In the trainer that band is load-bearing: it masks notes scrolling into the
+ * clef. Here nothing scrolls and the clef never changes, so it has nothing to
+ * mask and only causes harm.
+ */
+.htp-pp div.staff div.symbol.clef { background: transparent; }
 
 /* A prompt note is placed by percentage along the staff rather than by the
    trainer's scroll coordinate — nothing moves here, so there is no animation
