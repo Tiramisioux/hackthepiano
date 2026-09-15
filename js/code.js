@@ -1439,9 +1439,13 @@ $(function(){
 				var octave = 4 + Math.floor((noteShift + 6) / 7);
 				
 				var landmark = null;
+				var landmarkName = null;
 				Object.keys(landmarks).forEach(function(name){
 					if (landmarks[name].step == step && window.HTP.landmarkEnabled(name))
+					{
 						landmark = landmarks[name];
+						landmarkName = name;
+					}
 				});
 				if (!landmark)
 					continue;
@@ -1454,6 +1458,8 @@ $(function(){
 				{
 					/* On a line: a dashed rule along it. */
 					$('<div class="htp-marker htp-marker--rule"></div>')
+						.attr('data-htp-landmark', landmarkName)
+						.attr('data-htp-marker-shift', shift)
 						.css({top: markerTopEm(shift) + 'em', color: colour})
 						.appendTo(layer);
 				}
@@ -1461,6 +1467,8 @@ $(function(){
 				{
 					/* In a space: a band filling it line to line. */
 					$('<div class="htp-marker htp-marker--band"></div>')
+						.attr('data-htp-landmark', landmarkName)
+						.attr('data-htp-marker-shift', shift)
 						.css({
 							top: markerTopEm(shift + 1) + 'em',
 							height: (markerTopEm(shift - 1) - markerTopEm(shift + 1)) + 'em',
@@ -2082,6 +2090,38 @@ $(function(){
 			});
 		});
 	};
+	/*
+	 * How much room a staff container needs above and below, in em, to show notes
+	 * at these extreme shifts without clipping them.
+	 *
+	 * A staff container is only as tall as the staff and clips to its padding
+	 * box, while a note symbol is absolutely positioned and takes no layout space
+	 * — so a note far above or below is drawn correctly and then cut off, which
+	 * looks exactly like the note failing to register. The trainer settles this
+	 * once from the level's fixed shift range; a module whose range is whatever
+	 * you just played has to ask per note.
+	 *
+	 * The amount comes from markerTopEm(), the same function that places the
+	 * staff lines, the landmark markings and the noteheads themselves, so the
+	 * room returned is exactly the room needed and a note that already fits asks
+	 * for nothing. STAFF_TOP_OFFSET_EM is div.staff's own `top: 0.1em`, which
+	 * shifts the staff down without moving the container it is clipped by.
+	 */
+	var NOTEHEAD_HALF_EM = 0.14;
+	var STAFF_TOP_OFFSET_EM = 0.1;
+	var roomForShiftsEm = function(highestShift, lowestShift){
+		var above = 0;
+		var below = 0;
+		
+		if (highestShift !== null && highestShift !== undefined)
+			above = Math.max(0, -(markerTopEm(highestShift)
+				- NOTEHEAD_HALF_EM + STAFF_TOP_OFFSET_EM));
+		if (lowestShift !== null && lowestShift !== undefined)
+			below = Math.max(0, (markerTopEm(lowestShift)
+				+ NOTEHEAD_HALF_EM + STAFF_TOP_OFFSET_EM) - 2);
+		
+		return {above: above, below: below};
+	};
 	var buildNoteGlyph = function(clefId, sound){
 		var entry = spellingForSound(sound);
 		if (!entry || !clefs[clefId])
@@ -2349,6 +2389,7 @@ $(function(){
 				return (clefs[lowerClefId].shift - clefs[upperClefId].shift) * grid.stepEm - 2;
 			},
 			buildNoteGlyph: buildNoteGlyph,
+			roomForShiftsEm: roomForShiftsEm,
 			/* Give a set of noteheads one shared stem direction. Hand it every
 			 * head of a chord at once; a lone note can stem itself. */
 			applyStems: applyStems,
