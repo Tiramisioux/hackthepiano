@@ -775,7 +775,19 @@ div.staff div.lines .htp-staffline {
 	text-transform: uppercase;
 	color: var(--htp-muted);
 }
-.htp-pp__stagename { font-size: 17px; font-weight: 600; color: var(--htp-ink); }
+.htp-pp__stagepick {
+	font-size: 17px;
+	font-weight: 600;
+	color: var(--htp-ink);
+	background: transparent;
+	border: 1px solid transparent;
+	border-radius: 3px;
+	padding: 0 0.2em;
+	max-width: 22em;
+	cursor: pointer;
+}
+.htp-pp__stagepick:hover { border-color: var(--htp-border); }
+.htp-pp__stagepick:focus-visible { outline: 2px solid var(--htp-accent); outline-offset: 1px; }
 .htp-pp__stagedetail { font-size: 13px; color: var(--htp-muted); }
 
 .htp-pp__progress { display: flex; align-items: center; gap: 0.7em; }

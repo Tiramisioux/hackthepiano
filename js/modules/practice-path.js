@@ -687,7 +687,7 @@
 	/* ============================================================= rendering */
 
 	var root = null, staffEl = null, staffContainer = null, stavesEl = null;
-	var stageNumEl, stageNameEl, stageDetailEl, barEl, progressEl;
+	var stageNumEl, stagePickEl, stageDetailEl, barEl, progressEl;
 	var promptNameEl, feedbackEl, statsEl, doneEl, promptEl;
 	var unsubscribe = null;
 	/* Which keys are down right now. The drill needs this to hold a correct
@@ -701,8 +701,8 @@
 			  '<div class="htp-pp">'
 			+   '<header class="htp-pp__head">'
 			+     '<div class="htp-pp__stage">'
-			+       '<span class="htp-pp__stagenum"></span>'
-			+       '<span class="htp-pp__stagename"></span>'
+			+       '<span class="htp-pp__stagenum">Stage</span>'
+			+       '<select class="htp-pp__stagepick" title="Jump to a stage to look at it. Your progress is kept — this only changes where new items come from."></select>'
 			+       '<span class="htp-pp__stagedetail"></span>'
 			+     '</div>'
 			+     '<div class="htp-pp__progress">'
@@ -732,7 +732,7 @@
 		feedbackEl = el.querySelector('.htp-pp__feedback');
 		statsEl = el.querySelector('.htp-pp__stats');
 		stageNumEl = el.querySelector('.htp-pp__stagenum');
-		stageNameEl = el.querySelector('.htp-pp__stagename');
+		stagePickEl = el.querySelector('.htp-pp__stagepick');
 		stageDetailEl = el.querySelector('.htp-pp__stagedetail');
 		barEl = el.querySelector('.htp-pp__bar i');
 		progressEl = el.querySelector('.htp-pp__count');
@@ -747,10 +747,46 @@
 
 		el.querySelector('.htp-pp__reset').addEventListener('click', resetProgress);
 
+		STAGES.forEach(function (stage, i) {
+			var option = document.createElement('option');
+			option.value = String(i);
+			stagePickEl.appendChild(option);
+		});
+		stagePickEl.addEventListener('change', function () {
+			jumpToStage(parseInt(stagePickEl.value, 10));
+			/* Hand the keys back: while the select has focus the computer-keyboard
+			 * note mapping types into it instead of playing. */
+			stagePickEl.blur();
+		});
+
 		var noLabels = el.querySelector('.htp-pp__nolabels');
 		noLabels.addEventListener('change', function () {
 			document.body.classList.toggle('htp-pp-nolabels', noLabels.checked);
 		});
+	}
+
+	/*
+	 * Look at a stage. Progress is not touched — this only moves where new items
+	 * are introduced from, which is the one thing the ladder controls.
+	 *
+	 * It shows something from that stage straight away rather than letting the
+	 * scheduler choose, because the point of the menu is to SEE the stage. An
+	 * unseen item first; failing that, whichever of its items is due soonest.
+	 */
+	function jumpToStage(index) {
+		if (!STAGES[index]) return;
+		store.stage = index;
+		saveStore();
+
+		var ids = STAGE_ITEMS[index];
+		var unseen = ids.filter(function (id) { return !seen(id); });
+		var pick = unseen.length ? unseen[0]
+			: ids.slice().sort(function (a, b) {
+				return (store.items[a].due || 0) - (store.items[b].due || 0);
+			})[0];
+
+		if (pick) present(pick);
+		else advance();
 	}
 
 	function resetProgress() {
@@ -898,8 +934,14 @@
 	function updateHeader() {
 		var stage = STAGES[store.stage];
 		var progress = stageProgress(store.stage);
-		stageNumEl.textContent = 'Stage ' + stage.n;
-		stageNameEl.textContent = stage.name;
+		/* Each option carries its own progress, so the menu doubles as a map of
+		 * how far along the ladder you are. */
+		STAGES.forEach(function (each, i) {
+			var each_progress = stageProgress(i);
+			stagePickEl.options[i].textContent =
+				each.n + ' · ' + each.name + '  (' + each_progress.done + '/' + each_progress.total + ')';
+		});
+		stagePickEl.value = String(store.stage);
 		stageDetailEl.textContent = stage.detail;
 		barEl.style.width = Math.round(progress.ratio * 100) + '%';
 		progressEl.textContent = progress.done + ' of ' + progress.total + ' learnt';
@@ -1125,6 +1167,26 @@
 
 	function onNoteOn(sound) {
 		var current = session.current;
+
+		/*
+		 * Still waiting for you to let go of a correct answer, and you have played
+		 * a different key: you have plainly moved on, so move on with you.
+		 *
+		 * This is also what heals a lost note-off. A key-up can go missing — a
+		 * MIDI hiccup, a pointer sliding off an on-screen key — and the drill
+		 * would otherwise sit there until the backstop fired, which reads as the
+		 * app being stuck on the note you just got right. Playing anything else
+		 * clears it immediately.
+		 */
+		if (current && current.awaitingRelease && !current.item.sounds.some(function (s) { return s === sound; })) {
+			/* Only the answer's keys are forgotten — they are the ones whose
+			 * key-up may have gone missing. The key you just pressed is genuinely
+			 * down, so it stays. */
+			current.item.sounds.forEach(function (s) { delete held[s]; });
+			advanceAfterAnswer(current, 0);
+			return;
+		}
+
 		if (!current || current.phase === PHASE_DONE) return;
 
 		current.played.push(sound);
