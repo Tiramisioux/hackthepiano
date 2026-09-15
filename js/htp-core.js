@@ -40,6 +40,7 @@ window.HTP = (function (window, document) {
 	/* ------------------------------------------------------------- midi bus */
 
 	var busSubscribers = [];
+	var portSubscribers = [];
 
 	/* Publish a raw MIDI byte array on the bus. `source` is 'virtual' for the
 	 * on-screen keyboard and 'hardware' for a real input port. */
@@ -47,6 +48,15 @@ window.HTP = (function (window, document) {
 		busSubscribers.slice().forEach(function (fn) {
 			try { fn(bytes, source); }
 			catch (e) { console.error('[HTP] midi bus subscriber failed', e); }
+		});
+	}
+
+	/* Announce that the set of input ports changed — something connected or
+	 * disconnected — so UI that names the device can redraw. */
+	function publishPortChange(event) {
+		portSubscribers.slice().forEach(function (fn) {
+			try { fn(midiState, event); }
+			catch (e) { console.error('[HTP] midi port subscriber failed', e); }
 		});
 	}
 
@@ -127,10 +137,14 @@ window.HTP = (function (window, document) {
 		this._handlers = [];
 		this.nativePort = real;
 
-		real.onmidimessage = function (event) {
+		/* Kept on the wrapper rather than written straight onto the port: a
+		 * device that disconnects and comes back is handed to us as the same
+		 * port object with its handler cleared, and the tap has to be re-armed. */
+		this.nativeHandler = function (event) {
 			publish(event.data, 'hardware');
 			fanout(self, event);
 		};
+		real.onmidimessage = this.nativeHandler;
 	}
 	definePortMethods(MonitoredMIDIInput.prototype);
 
@@ -152,21 +166,91 @@ window.HTP = (function (window, document) {
 	 */
 	function makeAccess(realAccess) {
 		var inputs = new Map();
-		if (realAccess && realAccess.inputs && realAccess.inputs.forEach) {
-			realAccess.inputs.forEach(function (port, id) {
-				inputs.set(id, new MonitoredMIDIInput(port));
-				midiState.hardwareInputs.push(port.name);
+		var adopters = [];
+		var access;
+
+		/* Rebuilt from the map rather than appended to, so a device that goes
+		 * away and comes back is not listed twice. */
+		function refreshNames() {
+			midiState.hardwareInputs = [];
+			inputs.forEach(function (port) {
+				if (port !== virtualInput) midiState.hardwareInputs.push(port.name);
 			});
 		}
-		inputs.set(virtualInput.id, virtualInput);
 
-		return {
+		/* Wrap a real input port — or re-arm one we already know — and tell
+		 * everyone who asked to be told about ports. */
+		function connectInput(real) {
+			var known = inputs.get(real.id);
+			if (known) {
+				known.state = real.state;
+				known.connection = real.connection;
+				real.onmidimessage = known.nativeHandler;
+				return known;
+			}
+			known = new MonitoredMIDIInput(real);
+			inputs.set(real.id, known);
+			adopters.slice().forEach(function (fn) {
+				try { fn(known); }
+				catch (e) { console.error('[HTP] MIDI port adopter failed', e); }
+			});
+			return known;
+		}
+
+		function disconnectInput(real) {
+			var known = inputs.get(real.id);
+			if (!known) return;
+			known.state = 'disconnected';
+			known.connection = 'closed';
+			inputs.delete(real.id);
+		}
+
+		if (realAccess && realAccess.inputs && realAccess.inputs.forEach)
+			realAccess.inputs.forEach(function (port) { connectInput(port); });
+		inputs.set(virtualInput.id, virtualInput);
+		refreshNames();
+
+		access = {
 			inputs: inputs,
 			outputs: (realAccess && realAccess.outputs) || new Map(),
 			sysexEnabled: !!(realAccess && realAccess.sysexEnabled),
 			onstatechange: null,
-			nativeAccess: realAccess || null
+			nativeAccess: realAccess || null,
+			/* Non-standard, and the point of the whole wrapper: hardware that
+			 * appears after load still has to reach the trainer. The callback
+			 * runs once per port — for the ports present now, and again for
+			 * every one that turns up later. */
+			htpOnPortAdded: function (fn) {
+				if (typeof fn !== 'function') return;
+				adopters.push(fn);
+				inputs.forEach(function (port) {
+					if (port !== virtualInput) fn(port);
+				});
+			}
 		};
+
+		/* Hotplug. Without this the input list is a snapshot taken at load, and
+		 * a Bluetooth piano is never in it: the browser only sees a BLE-MIDI
+		 * port once the OS has finished connecting the device, which is long
+		 * after the page asked for access. */
+		if (realAccess && realAccess.addEventListener) {
+			realAccess.addEventListener('statechange', function (event) {
+				var port = event && event.port;
+				if (port && port.type === 'input') {
+					if (port.state === 'connected') connectInput(port);
+					else disconnectInput(port);
+					refreshNames();
+				}
+				if (typeof access.onstatechange === 'function') {
+					try { access.onstatechange(event); }
+					catch (e) { console.error('[HTP] onstatechange handler failed', e); }
+				}
+				publishPortChange(event);
+			});
+		}
+
+		midi.access = access;
+		return access;
 	}
 
 	var nativeRequestMIDIAccess = navigator.requestMIDIAccess
@@ -195,6 +279,11 @@ window.HTP = (function (window, document) {
 	var midi = {
 		port: virtualInput,
 		state: midiState,
+		/* The wrapped MIDIAccess, once js/code.js has asked for it — the live
+		 * input map, and `.nativeAccess` for the browser's own object. Handy
+		 * when a device will not talk and you need to see what the browser
+		 * actually has. */
+		access: null,
 		/* Send from the on-screen keyboard. */
 		send: function (bytes) {
 			virtualInput.deliver(bytes);
@@ -214,6 +303,15 @@ window.HTP = (function (window, document) {
 			return function () {
 				var i = busSubscribers.indexOf(fn);
 				if (i !== -1) busSubscribers.splice(i, 1);
+			};
+		},
+		/* Observe the device list itself. Handler receives (state, event).
+		 * Returns an unsubscribe function. */
+		onPortChange: function (fn) {
+			portSubscribers.push(fn);
+			return function () {
+				var i = portSubscribers.indexOf(fn);
+				if (i !== -1) portSubscribers.splice(i, 1);
 			};
 		}
 	};
