@@ -1,7 +1,22 @@
 $(function(){
 	var settings = {
 		numberOfKeys: 88,
-		shiftSize: 0.113,
+		/*
+		 * One step from a line to the next space.
+		 *
+		 * The staff artwork puts its lines 120 units apart in a 1066.201-unit
+		 * box, and a step is half that spacing — so the step is exactly
+		 * 120/1066.201 em, which is what markerTopEm() places lines, markings
+		 * and ledger lines by.
+		 *
+		 * This was 0.113, that number rounded up. Harmless at the middle line
+		 * and cumulative away from it, because a note's offset is the step
+		 * times its shift: about 0.05px per step, so a fifth of a pixel at the
+		 * bottom staff line but most of a pixel by the sixth ledger line. Since
+		 * the lines snap to the device pixel grid and the noteheads do not, a
+		 * low or high note visibly missed the line it was sitting on.
+		 */
+		shiftSize: 120 / 1066.201,
 		newNoteInterval: 5000,
 		animationStep: 70,
 		animationInterval: 20,
