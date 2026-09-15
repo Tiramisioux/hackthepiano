@@ -849,6 +849,19 @@ div.staff div.symbol.note.htp-pp-note--wrong { opacity: 0.55; }
 .htp-pp-marker--retired.htp-marker--rule { opacity: 0.22; }
 .htp-pp-marker--retired.htp-marker--band { opacity: 0.04; }
 
+/* `hidden` must actually hide.
+ *
+ * The UA sheet's [hidden]{display:none} is specificity 0,1,0, so ANY rule here
+ * that sets display — .htp-pp__name and .htp-pp__done both do, to lay their
+ * contents out in a column — silently outranks it and the element stays on
+ * screen with whatever it last contained. That is how a by-name prompt from the
+ * previous item ("C4 — play it without looking down") went on showing over the
+ * staff of the next one, which reads as the app asking two questions at once.
+ *
+ * One blanket rule for the pane, so the next element that needs hiding cannot
+ * reintroduce this. */
+.htp-pp [hidden] { display: none !important; }
+
 .htp-pp .htp-pp__name {
 	text-align: center;
 	display: flex;
