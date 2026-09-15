@@ -159,24 +159,7 @@
 		var byClef = {};
 		active.forEach(function (id) { byClef[id] = []; });
 
-		/* "Both" shows a note wherever it can be written rather than only where
-		 * it reads best — useful for seeing that middle C is the same note in
-		 * either clef. It is off under Musical clef distance, which spaces the
-		 * staves by true pitch so both copies would sit in the same place. */
-		var onEveryClef = window.HTP.settings.bothClefs === true
-			&& window.HTP.settings.musicalClefDistance !== true
-			&& active.length > 1;
-
 		group.sounds.forEach(function (sound) {
-			if (onEveryClef) {
-				var placed = active.filter(function (id) {
-					return !!notation().buildNoteGlyph(id, sound);
-				});
-				if (placed.length) {
-					placed.forEach(function (id) { byClef[id].push(sound); });
-					return;
-				}
-			}
 			byClef[notation().bestClef(sound, active)].push(sound);
 		});
 
@@ -287,7 +270,6 @@
 					applyOptions();
 					render();
 				}
-				if (key === 'bothClefs') render();
 			});
 			api.onMarkersChanged(applyOptions);
 		},

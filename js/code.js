@@ -25,7 +25,14 @@ $(function(){
 	};
 	var symbolTypes = { note: 'note', clef: 'clef' };
 	var symbols = {
-			line: '<svg viewBox="0 -470 500 1066.201" shape-rendering="crispEdges">'
+			/* preserveAspectRatio="none" because callers set an explicit width on
+			 * this SVG to size a ledger line. Under the default "meet" that width
+			 * becomes the binding constraint, shrinking the whole artwork and
+			 * re-centring it vertically — which moved the stroke 5.7px off the
+			 * notehead at a 95px staff. The stroke keeps its 1px weight through a
+			 * non-uniform scale because of vector-effect="non-scaling-stroke",
+			 * and a horizontal rule has no shape to distort. */
+			line: '<svg viewBox="0 -470 500 1066.201" preserveAspectRatio="none" shape-rendering="crispEdges">'
 			  +'<line vector-effect="non-scaling-stroke" stroke="black" stroke-width="1" x1="0" x2="500" y1="0" y2="0" />'
 			  +'</svg>',
 			clefs: {
