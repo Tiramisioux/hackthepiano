@@ -2127,6 +2127,16 @@ $(function(){
 				eventAction: input.manufacturer + ' ' + input.name
 			});
 		}
+
+		/* The loop above only ever sees the devices that existed at load. A
+		 * Bluetooth piano connects later, so htp-core hands us each port as it
+		 * arrives and we wire the same handler to it. */
+		if (typeof midiAccess.htpOnPortAdded === 'function')
+			midiAccess.htpOnPortAdded(function (input) {
+				console.log("Input port added id:'" + input.id + "' name:'" + input.name + "'");
+				input.onmidimessage = onMIDIMessage;
+			});
+
 		for (var entry of midiAccess.outputs) {
 			var output = entry[1];
 		    console.log( "Output port [type:'" + output.type + "'] id:'" + output.id +

@@ -428,6 +428,10 @@
 			statusEl.textContent = 'MIDI: ' + state.hardwareInputs.join(', ');
 		else if (!state.supported)
 			statusEl.textContent = 'No Web MIDI in this browser — on-screen keys only';
+		else if (state.error)
+			/* Permission refused is the common one, and silently falling back to
+			 * the on-screen keys reads as "the piano is broken". Say so. */
+			statusEl.textContent = 'MIDI blocked: ' + state.error;
 		else
 			statusEl.textContent = 'No MIDI device — play with mouse or keys A–J';
 	}
@@ -453,6 +457,10 @@
 			if (key === 'colourKeys' || key === 'keyNames' || key.indexOf('landmark') === 0)
 				applyKeyColours();
 		});
+
+		/* The device list is not fixed at load — Bluetooth pianos connect late
+		 * and cables come and go — so track it rather than sampling it once. */
+		window.HTP.midi.onPortChange(updateStatus);
 
 		/* js/code.js requests MIDI access on ready; give it a tick to resolve. */
 		window.setTimeout(updateStatus, 600);
