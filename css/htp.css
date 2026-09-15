@@ -846,6 +846,10 @@ div.staff div.symbol.note.htp-pp-note svg.line { left: -0.35em; right: -0.35em; 
    Selector weight matters here — css/styles.css sets `.symbol.note.visible
    { opacity: 1 }`, which a single class cannot outrank. */
 div.staff div.symbol.note.htp-pp-note--given { opacity: 0.4; }
+/* Confirmed, so no longer just context: an anchor you have played comes up to
+   full strength alongside the note it was read from. Outranks the dimming rule
+   above, which is why it repeats the whole selector. */
+div.staff div.symbol.note.htp-pp-note--given.htp-pp-note--correct { opacity: 1; }
 div.staff div.symbol.note.htp-pp-note--wrong { opacity: 0.55; }
 .htp-pp-note--wrong svg path { fill: #c0392b; }
 .htp-pp-note--wrong svg .htp-stem { fill: #c0392b; }
