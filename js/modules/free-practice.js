@@ -189,6 +189,8 @@
 				lowest = (lowest === null) ? built.shift : Math.min(lowest, built.shift);
 			});
 
+			/* The heads are all in, so they can agree on a stem direction. */
+			notation().applyStems($('svg', symbol));
 			notation().addLedgerLines(symbol, topLedgers);
 			notation().addLedgerLines(symbol, bottomLedgers);
 			staves[clefId].append(symbol);
