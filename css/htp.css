@@ -806,15 +806,6 @@ div.staff div.lines .htp-staffline {
 }
 
 .htp-pp__staves { margin: 0 auto; width: 100%; }
-/* The clef paints an opaque white band 100em tall in each direction — that is
-   how the trainer erases notes scrolling into it, and .staffContainer's
-   overflow:hidden is what keeps it inside the staff. Letting the container
-   overflow to show ledger notes therefore lets a 15000px white rectangle out
-   over the header and the footer, in the clef's own column. makeRoom() already
-   pads the container, and overflow clips to the PADDING box, so the room is
-   visible without it. Free practice settles this the same way: no scrolling and
-   no clef changes here, so the clef needs no background at all. */
-.htp-pp div.staff div.symbol.clef { background: transparent; }
 /*
  * Kill the clef's white background, exactly as free practice does.
  *
