@@ -828,7 +828,7 @@
 	}
 
 	/* Draw one notehead as its own symbol at a fixed place along the staff. */
-	function drawNote(clefId, sound, leftPercent, classes) {
+	function drawNote(clefId, sound, leftPercent, classes, answerIndex) {
 		var built = notation().buildNoteGlyph(clefId, sound);
 		if (!built) return null;
 
@@ -844,6 +844,7 @@
 
 		var symbol = $('<div class="symbol note visible htp-pp-note"></div>')
 			.addClass(classes || '')
+			.attr('data-pp-index', answerIndex)
 			.css({ left: leftPercent + '%' })
 			.append(built.glyph);
 
@@ -987,11 +988,11 @@
 			if (item.type === 'step') {
 				/* The first note is given — it is the anchor you read FROM. The
 				 * second is the question. */
-				shifts.push(drawNote(item.clef, item.sounds[0], STEP_LEFT_PCT, 'htp-pp-note--given'));
-				shifts.push(drawNote(item.clef, item.sounds[1], STEP_RIGHT_PCT, ''));
+				shifts.push(drawNote(item.clef, item.sounds[0], STEP_LEFT_PCT, 'htp-pp-note--given', 0));
+				shifts.push(drawNote(item.clef, item.sounds[1], STEP_RIGHT_PCT, '', 1));
 				setFeedback('', 'Play both, in order.');
 			} else {
-				shifts.push(drawNote(item.clef, item.sounds[0], SINGLE_LEFT_PCT, ''));
+				shifts.push(drawNote(item.clef, item.sounds[0], SINGLE_LEFT_PCT, '', 0));
 				setFeedback('', seen(id) ? 'Play it.' : 'New note. Play it — take as long as you like.');
 			}
 			makeRoom(shifts);
@@ -1113,9 +1114,19 @@
 	/* Green on the thing you were asked to produce: the notehead on the staff, or
 	 * the name when there is no staff. The given note of a step pair stays as it
 	 * was — it was the anchor, not the question. */
+	/* One note of the answer, confirmed the moment it lands. On a step pair that
+	 * means the anchor goes green as you play it, rather than both notes waiting
+	 * on the second — you get told about the first half while you are still
+	 * reading the second. */
+	function markNoteCorrect(index) {
+		staffEl.find('.htp-pp-note[data-pp-index="' + index + '"]')
+			.addClass('htp-pp-note--correct');
+	}
+
+	/* Everything you played, once the whole answer is in. The given note of a
+	 * step pair is included: you played it, so it is confirmed like any other. */
 	function markCorrect() {
 		staffEl.find('.htp-pp-note')
-			.not('.htp-pp-note--given')
 			.not('.htp-pp-note--wrong')
 			.addClass('htp-pp-note--correct');
 		var value = promptNameEl.querySelector('.htp-pp__nameval');
@@ -1136,6 +1147,8 @@
 		}
 		current.phase = PHASE_FIX;
 		current.progress = 0;
+		/* The answer is replayed from the top, so nothing is confirmed any more. */
+		staffEl.find('.htp-pp-note').removeClass('htp-pp-note--correct');
 		updateHeader();
 
 		var target = current.item.sounds[current.item.type === 'step' ? 1 : 0];
@@ -1194,6 +1207,7 @@
 		var expected = current.item.sounds[current.progress];
 		if (sound === expected) {
 			current.progress++;
+			markNoteCorrect(current.progress - 1);
 			if (current.progress >= current.item.sounds.length) succeed();
 			else if (current.phase === PHASE_ASK)
 				setFeedback('', 'Good — now the next one.');
