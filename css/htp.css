@@ -422,6 +422,9 @@ div.shareContainer { position: static; }
    2.2mm gap, drawn about 1.9x the weight of a staff line. */
 .htp-marker--rule {
 	height: 2px;
+	/* Same as a staff line, doubled: a 2px box anchored at markerTopEm has its
+	   ink centre a full pixel below the coordinate it is meant to trace. */
+	margin-top: -1px;
 	background-image: repeating-linear-gradient(
 		to right,
 		currentColor 0, currentColor 6px,
@@ -600,6 +603,19 @@ div.staff div.lines .htp-staffline {
 	left: 0;
 	right: 0;
 	height: 0;
+	/*
+	 * A top border paints DOWNWARD from the box's top edge, so a line placed at
+	 * markerTopEm() had its ink centred half a pixel below that coordinate —
+	 * while noteheads and ledger strokes are centred ON it. Every notehead
+	 * therefore sat half a CSS pixel above its line, in the same direction, at
+	 * every size and every pixel ratio.
+	 *
+	 * Upstream did not have this: it drew the lines as a tiled background SVG
+	 * whose non-scaling strokes are centred on the geometric y, so the
+	 * coordinate meant "ink centre". Pulling the box up by half the line's
+	 * weight restores that meaning.
+	 */
+	margin-top: -0.5px;
 	border-top: 1px solid #000;
 }
 
