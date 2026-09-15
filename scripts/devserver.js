@@ -63,7 +63,45 @@ if (!fs.existsSync(path.join(opts.root, 'index.html'))) {
 	process.exit(1);
 }
 
+/*
+ * Optional local plugin.
+ *
+ * scripts/devserver-plugin.js is NOT in the repository. When one is present it
+ * gets first refusal on every request, which is how a local-only branch can add
+ * an endpoint — a practice-journal sink, say — without editing this file and
+ * colliding with it on every rebase.
+ *
+ * The contract is one function:
+ *
+ *   exports.handle = (req, res, opts) => boolean   // true when it answered
+ *
+ * Nothing here runs on GitHub Pages: Pages serves static files and has no
+ * request handler at all, so an endpoint added this way cannot exist in the
+ * published deployment. That is the point — the private half of the app is
+ * unreachable from the public one by construction, not by configuration.
+ */
+let plugin = null;
+const pluginPath = path.join(__dirname, 'devserver-plugin.js');
+if (fs.existsSync(pluginPath)) {
+	try {
+		plugin = require(pluginPath);
+	} catch (e) {
+		console.error(`Plugin failed to load: ${e.message}`);
+		plugin = null;
+	}
+}
+
 const server = http.createServer((req, res) => {
+	if (plugin && typeof plugin.handle === 'function') {
+		let handled = false;
+		try {
+			handled = plugin.handle(req, res, opts);
+		} catch (e) {
+			console.error(`Plugin error: ${e.message}`);
+		}
+		if (handled) return;
+	}
+
 	let urlPath;
 	try {
 		urlPath = decodeURIComponent(new URL(req.url, 'http://localhost').pathname);
@@ -108,5 +146,6 @@ server.listen(opts.port, opts.host, () => {
 	console.log(`  serving : ${opts.root}`);
 	console.log(`  url     : http://${opts.host}:${opts.port}/`);
 	console.log(`  secure context: yes (Web MIDI works on localhost)`);
+	if (plugin) console.log(`  plugin  : ${pluginPath}`);
 	console.log(`Press Ctrl-C to stop.`);
 });

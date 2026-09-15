@@ -187,9 +187,13 @@
            its pane is still visible). -->
     <script src="js/jquery-3.2.1.min.js" type="text/javascript"></script>
     <script src="js/htp-core.js" type="text/javascript"></script>
+    <!-- after htp-core.js, which assigns window.HTP wholesale and would
+         otherwise clobber the journal; before anything that records. -->
+    <script src="js/htp-journal.js" type="text/javascript"></script>
     <script src="css/bootstrap-3.3.7/js/bootstrap.min.js"></script>
     <script src="js/code.js" type="text/javascript"></script>
     <script src="js/modules/note-trainer.js" type="text/javascript"></script>
+    <script src="js/modules/practice-path.js" type="text/javascript"></script>
     <script src="js/modules/free-practice.js" type="text/javascript"></script>
     <script src="js/modules/midi-monitor.js" type="text/javascript"></script>
     <script src="js/htp-keyboard.js" type="text/javascript"></script>

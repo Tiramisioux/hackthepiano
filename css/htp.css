@@ -736,3 +736,169 @@ div.staff div.lines .htp-staffline {
 /* The notehead's own artwork bias is handled in js/code.js now, by
    glyphTopEm(): each glyph is placed so that what it DRAWS lands on the line,
    which needs the grid's snapped origin and cannot be a constant here. */
+
+/* ------------------------------------------------------------ practice path */
+
+/* One content column, so the header, the staff, the feedback and the footer all
+   share a measure. Left full-width the row contents end up marooned at the two
+   edges of a wide pane — the stage name against the left wall and the progress
+   against the right, with several hundred pixels of nothing between them. */
+.htp-pp {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	width: 100%;
+	/* px, not rem: Bootstrap 3 sets html{font-size:10px}, so a rem here is 10px
+	   and any rem measure comes out a third short of what it reads as. */
+	max-width: 920px;
+	margin: 0 auto;
+	padding: 0.8em 1.2em 0;
+	gap: 0.6em;
+}
+
+.htp-pp__head {
+	display: flex;
+	align-items: flex-end;
+	gap: 1.4em;
+	flex-wrap: wrap;
+}
+.htp-pp__stage {
+	display: flex;
+	align-items: baseline;
+	gap: 0.55em;
+	flex: 1 1 auto;
+	flex-wrap: wrap;
+}
+.htp-pp__stagenum {
+	font-size: 12px;
+	letter-spacing: 0.09em;
+	text-transform: uppercase;
+	color: var(--htp-muted);
+}
+.htp-pp__stagename { font-size: 17px; font-weight: 600; color: var(--htp-ink); }
+.htp-pp__stagedetail { font-size: 13px; color: var(--htp-muted); }
+
+.htp-pp__progress { display: flex; align-items: center; gap: 0.7em; }
+.htp-pp__bar {
+	width: 7em;
+	height: 4px;
+	border-radius: 2px;
+	background: var(--htp-border);
+	overflow: hidden;
+}
+.htp-pp__bar i {
+	display: block;
+	height: 100%;
+	width: 0;
+	background: var(--htp-accent);
+	transition: width 0.3s ease;
+}
+.htp-pp__count { font-size: 12px; color: var(--htp-muted); white-space: nowrap; }
+
+/* The prompt takes the room that is going, so the staff sits in the middle of
+   the pane rather than crowding the header. */
+.htp-pp__prompt {
+	flex: 1 1 auto;
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	min-height: 0;
+}
+
+.htp-pp__staves { margin: 0 auto; width: 100%; }
+.htp-pp .staffContainer { overflow: visible; }
+
+/* A prompt note is placed by percentage along the staff rather than by the
+   trainer's scroll coordinate — nothing moves here, so there is no animation
+   loop to own the position. */
+div.staff div.symbol.note.htp-pp-note {
+	right: auto;
+	margin-left: -0.5em;
+	width: 1em;
+}
+div.staff div.symbol.note.htp-pp-note svg.line { left: -0.35em; right: -0.35em; }
+
+/* The given note of a step pair: present, but plainly not the question.
+   Selector weight matters here — css/styles.css sets `.symbol.note.visible
+   { opacity: 1 }`, which a single class cannot outrank. */
+div.staff div.symbol.note.htp-pp-note--given { opacity: 0.4; }
+div.staff div.symbol.note.htp-pp-note--wrong { opacity: 0.55; }
+.htp-pp-note--wrong svg path { fill: #c0392b; }
+.htp-pp-note--wrong svg .htp-stem { fill: #c0392b; }
+
+/* A landmark marking that has done its job. It fades rather than vanishing, so
+   the staff still reads as the same staff from one item to the next.
+
+   Per kind, because the two do not start from the same place: a rule is drawn at
+   full opacity and a band at 0.16. One shared retired value either leaves the
+   band exactly as visible as it was (0.16 -> 0.12 is no change the eye can see)
+   or drops the rule off a cliff. Retiring each to about a fifth of its own
+   baseline keeps the two reading as the same gesture. */
+.htp-pp-marker--retired.htp-marker--rule { opacity: 0.22; }
+.htp-pp-marker--retired.htp-marker--band { opacity: 0.04; }
+
+.htp-pp .htp-pp__name {
+	text-align: center;
+	display: flex;
+	flex-direction: column;
+	gap: 0.3em;
+}
+.htp-pp__nameval {
+	font-size: 64px;
+	font-weight: 600;
+	line-height: 1;
+	color: var(--htp-ink);
+	letter-spacing: 0.01em;
+}
+.htp-pp__namehint { font-size: 13px; color: var(--htp-muted); }
+
+.htp-pp__done { text-align: center; display: flex; flex-direction: column; gap: 0.7em; align-items: center; }
+.htp-pp__donetitle { font-size: 24px; font-weight: 600; }
+.htp-pp__donetext {
+	font-size: 14px;
+	color: var(--htp-muted);
+	max-width: 30em;
+	margin: 0 auto;
+}
+
+.htp-pp__feedback {
+	min-height: 4.2em;
+	text-align: center;
+	font-size: 15px;
+	color: var(--htp-muted);
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	gap: 0.15em;
+}
+.htp-pp__feedback--good { color: #1e9e5a; font-weight: 600; }
+.htp-pp__feedback--bad { color: var(--htp-ink); }
+.htp-pp__feedback small { font-weight: 400; color: var(--htp-muted); margin-left: 0.4em; }
+.htp-pp__fixline { font-size: 15px; }
+.htp-pp__fixhint { font-size: 13px; color: var(--htp-muted); margin-top: 0.2em; }
+.htp-pp-mark { font-weight: 600; }
+
+.htp-pp__foot {
+	display: flex;
+	align-items: center;
+	gap: 1.2em;
+	padding: 0.5em 0 0.8em;
+	border-top: 1px solid var(--htp-border);
+	font-size: 12px;
+	color: var(--htp-muted);
+	flex-wrap: wrap;
+}
+.htp-pp__stats { display: flex; gap: 1.1em; flex: 1 1 auto; }
+.htp-pp__opt { margin: 0; font-weight: 400; display: flex; align-items: center; gap: 0.4em; }
+
+/* Blanking the printed key names is what makes a by-name prompt an honest test
+   for someone with no piano attached — otherwise the keyboard is the answer
+   key. It leaves the keys themselves alone. */
+body.htp-pp-nolabels .htp-key__label { visibility: hidden; }
+
+@media (max-width: 720px) {
+	.htp-pp { padding: 0.6em 0.7em 0; }
+	.htp-pp__stagedetail { display: none; }
+	.htp-pp__nameval { font-size: 44px; }
+	.htp-pp__feedback { min-height: 3.6em; font-size: 14px; }
+}
