@@ -1164,8 +1164,142 @@ $(function(){
 	 * which works out at settings.shiftSize per step, as everywhere else. */
 	var MARKER_SHIFT_TOP = 7;      /* highest shift still inside the .staff box */
 	var MARKER_SHIFT_BOTTOM = -9;  /* lowest  shift still inside the .staff box */
+	
+	/*
+	 * The staff grid, snapped to whole device pixels.
+	 *
+	 * The ideal geometry above is fractional, and that is a problem once it is
+	 * painted. A staff line is a 1px border and a ledger line is drawn with
+	 * shape-rendering:crispEdges — both snap to the device pixel grid, each one
+	 * rounding on its own. Ideal spacing of 21.383px came out as 42, 43, 43, 43
+	 * device pixels: lines visibly unevenly spaced. A notehead, meanwhile, is an
+	 * antialiased path that does NOT snap, so it landed up to half a device pixel
+	 * off the line it was supposed to be sitting on.
+	 *
+	 * Rounding the STEP to a whole number of device pixels fixes both at once:
+	 * lines, ledgers and noteheads then all land on the same integer grid, so
+	 * spacing is exactly even and a note sits exactly on its line. The cost is a
+	 * staff up to a pixel off the ideal height, which nobody can see, for
+	 * evenness that everybody can.
+	 *
+	 * It depends on the staff's font size AND on devicePixelRatio, so it is
+	 * recomputed whenever either changes: a resize, a browser zoom, or a move to
+	 * a display with a different pixel ratio.
+	 */
+	var IDEAL_STEP_EM = 120 / 1066.201;    /* one line-to-space step */
+	var IDEAL_ORIGIN_EM = 940 / 1066.201;  /* where shift 0 sits     */
+	/* Where each artwork draws within its own 2em box: the line SVG puts its
+	 * stroke here, the notehead SVG its painted centre. They differ, which is why
+	 * a notehead needs a correction a line does not. */
+	var LINE_CENTRE_EM = 470 / 1066.201 * 2;
+	var NOTEHEAD_CENTRE_EM = (315.305 + 156.776) / 1066.201 * 2;
+	
+	var grid = { fontPx: 0, dpr: 0, stepEm: IDEAL_STEP_EM, originEm: IDEAL_ORIGIN_EM };
+	
+	var recomputeGrid = function(){
+		var el = $('.staffsContainer')[0];
+		var fontPx = el ? parseFloat(window.getComputedStyle(el).fontSize) : 0;
+		var dpr = window.devicePixelRatio || 1;
+		
+		if (!fontPx || !isFinite(fontPx))
+			return false;
+		if (fontPx === grid.fontPx && dpr === grid.dpr)
+			return false;
+		
+		var devicePxPerEm = fontPx * dpr;
+		var stepDevicePx = Math.max(1, Math.round(IDEAL_STEP_EM * devicePxPerEm));
+		
+		grid = {
+			fontPx: fontPx,
+			dpr: dpr,
+			stepEm: stepDevicePx / devicePxPerEm,
+			originEm: Math.round(IDEAL_ORIGIN_EM * devicePxPerEm) / devicePxPerEm
+		};
+		return true;
+	};
+	
+	/* Where a shift sits, in em from the top of the .staff box. Everything with a
+	 * vertical position on a staff goes through this. */
 	var markerTopEm = function(shift){
-		return (940 - 120 * shift) / 1066.201;
+		return grid.originEm - shift * grid.stepEm;
+	};
+	/* Top offset for an <svg> that draws at `artworkCentreEm` within its own box,
+	 * so that what it draws lands on `shift`. */
+	var glyphTopEm = function(shift, artworkCentreEm){
+		return markerTopEm(shift) - artworkCentreEm;
+	};
+	/*
+	 * Place a glyph on the staff, remembering where it belongs.
+	 *
+	 * The shift is recorded on the element so the whole staff can be laid out
+	 * again from scratch when the grid changes — a note already on screen when
+	 * the window is resized moves with everything else instead of being stranded
+	 * at a position computed against the old pixel grid.
+	 */
+	var placeGlyph = function(el, shift, artworkCentreEm){
+		return $(el)
+			.attr('data-htp-shift', shift)
+			.attr('data-htp-artwork', artworkCentreEm)
+			.css({top: glyphTopEm(shift, artworkCentreEm) + 'em'});
+	};
+	var repositionGlyphs = function(){
+		$('[data-htp-shift]').each(function(){
+			var el = $(this);
+			el.css({top: glyphTopEm(parseFloat(el.attr('data-htp-shift')),
+				parseFloat(el.attr('data-htp-artwork'))) + 'em'});
+		});
+	};
+	/*
+	 * Re-lay-out every staff for the current grid. Cheap enough to run on a
+	 * resize: it is a handful of style writes, no DOM rebuilding beyond the
+	 * staff lines themselves.
+	 */
+	var relayoutForGrid = function(){
+		$('.staff').each(function(){ renderStaffLines($(this)); });
+		repositionGlyphs();
+		if (typeof applyStaffSpacing === 'function') applyStaffSpacing();
+		if (state.level)
+			state.level.staffs.forEach(function(staff){
+				renderStaffMarkers($('#' + staff.id), staff.clef);
+			});
+		if (window.HTP && typeof window.HTP.notifyMarkersChanged === 'function')
+			window.HTP.notifyMarkersChanged();
+	};
+	/*
+	 * Watch for anything that changes the grid. A resize covers window changes
+	 * and the staff-size control; devicePixelRatio changes on browser zoom and on
+	 * a move between displays, and does NOT reliably fire a resize — the only
+	 * dependable signal is a media query bound to the current ratio, rebound each
+	 * time it trips.
+	 */
+	var watchGrid = function(){
+		var apply = function(){
+			if (recomputeGrid())
+				relayoutForGrid();
+		};
+		
+		window.addEventListener('resize', apply);
+		window.addEventListener('orientationchange', apply);
+		
+		var query = null;
+		var onRatioChange = function(){ apply(); bindRatio(); };
+		var bindRatio = function(){
+			if (query && query.removeEventListener)
+				query.removeEventListener('change', onRatioChange);
+			if (!window.matchMedia)
+				return;
+			query = window.matchMedia('(resolution: ' + (window.devicePixelRatio || 1) + 'dppx)');
+			if (query.addEventListener)
+				query.addEventListener('change', onRatioChange);
+		};
+		bindRatio();
+		
+		/* The staff size is set from js/htp-panes.js by writing a CSS variable,
+		 * which fires no event of its own. */
+		if (window.HTP && typeof window.HTP.onSettingChange === 'function')
+			window.HTP.onSettingChange(function(key){
+				if (key === 'staffSize') setTimeout(apply, 0);
+			});
 	};
 	/* Draw the landmark layer into one staff element for one clef. Shared by the
 	 * trainer and by any module that renders its own staves. */
@@ -1308,7 +1442,7 @@ $(function(){
 			return;
 		
 		var deltaShift = clefs[lower.clef].shift - clefs[upper.clef].shift;
-		containers.eq(1).css('margin-top', ((deltaShift * settings.shiftSize) - 2) + 'em');
+		containers.eq(1).css('margin-top', ((deltaShift * grid.stepEm) - 2) + 'em');
 	};
 	var setClefs = function(){
 		var clefSet = getRandomArrayEl(state.level.clefSets);
@@ -1336,7 +1470,7 @@ $(function(){
 			symbol.append(symbols.clefs[staff.clef]);
 			key.lines.forEach(function(l){
 				var shift = clef.keys[key.decorator][l].shift;
-				symbol.append($(symbols.decorators[key.decorator]).css({top: (-shift * settings.shiftSize)+'em'}));
+				symbol.append(placeGlyph($(symbols.decorators[key.decorator]), shift, NOTEHEAD_CENTRE_EM));
 			});
 			
 			addSymbol(staffEl, {type: symbolTypes.clef, symbol: symbol, position: startPosition, staff: staff.id});
@@ -1358,7 +1492,7 @@ $(function(){
 	var addAdditionalLines = function(symbol, numberOfAdditionalLines){
 		var sign = numberOfAdditionalLines > 0 ? 1 : -1;
 		for (var i = Math.abs(numberOfAdditionalLines) + 2; i >= 3; i--)
-			symbol.append($(symbols.line).addClass('line').css({top: (-sign * 2 * i * settings.shiftSize)+'em'}));
+			symbol.append(placeGlyph($(symbols.line).addClass('line'), sign * 2 * i, LINE_CENTRE_EM));
 	};
 	var createNewNote = function(){
 		state.newNoteHandler = setTimeout(createNewNote, state.newNoteInterval);
@@ -1392,8 +1526,7 @@ $(function(){
 			var numberOfAdditionalLines = getNumberOfAdditionalLines(shiftInClef);
 			numberOfAdditionalTopLines = Math.max(numberOfAdditionalTopLines, numberOfAdditionalLines);
 			numberOfAdditionalBottomLines = Math.min(numberOfAdditionalBottomLines, numberOfAdditionalLines);
-			var noteGlyph = $(symbols.notes[note.decorator])
-				.css({top: (-shiftInClef * settings.shiftSize)+'em'});
+			var noteGlyph = placeGlyph($(symbols.notes[note.decorator]), shiftInClef, NOTEHEAD_CENTRE_EM);
 			var noteColour = landmarkColourForSound(note.sound);
 			if (noteColour)
 				noteGlyph.css('fill', noteColour);
@@ -1543,7 +1676,8 @@ $(function(){
 		var ghost = $(glyphForDecorator(entry.decorator))
 			.addClass('played')
 			.addClass(isCorrect ? 'correct' : 'wrong')
-			.css({top: (-shiftInClef * settings.shiftSize)+'em'});
+			.attr('data-htp-shift', shiftInClef).attr('data-htp-artwork', NOTEHEAD_CENTRE_EM)
+			.css({top: glyphTopEm(shiftInClef, NOTEHEAD_CENTRE_EM) + 'em'});
 		activeNote.symbol.append(ghost);
 		added.push(ghost);
 		
@@ -1561,7 +1695,8 @@ $(function(){
 				var lineEl = $(symbols.line)
 					.addClass('line played')
 					.addClass(isCorrect ? 'correct' : 'wrong')
-					.css({top: (-sign * 2 * i * settings.shiftSize)+'em'});
+					.attr('data-htp-shift', sign * 2 * i).attr('data-htp-artwork', LINE_CENTRE_EM)
+					.css({top: glyphTopEm(sign * 2 * i, LINE_CENTRE_EM) + 'em'});
 				activeNote.symbol.append(lineEl);
 				added.push(lineEl);
 			}
@@ -1835,8 +1970,7 @@ $(function(){
 			return null;
 		
 		var shiftInClef = entry.clefs[clefId].shift;
-		var glyph = $(glyphForDecorator(entry.decorator))
-			.css({top: (-shiftInClef * settings.shiftSize) + 'em'});
+		var glyph = placeGlyph($(glyphForDecorator(entry.decorator)), shiftInClef, NOTEHEAD_CENTRE_EM);
 		
 		var colour = landmarkColourForSound(sound);
 		if (colour)
@@ -2031,8 +2165,8 @@ $(function(){
 		state.level = levels[level];
 		state.newNoteInterval = settings.newNoteInterval;
 		stats = Object.assign({}, defaultStats);
-		var paddingTop = Math.max(0, state.level.shiftTo - 4) * settings.shiftSize;
-		var paddingBottom = Math.max(0, -state.level.shiftFrom - 4) * settings.shiftSize;
+		var paddingTop = Math.max(0, state.level.shiftTo - 4) * grid.stepEm;
+		var paddingBottom = Math.max(0, -state.level.shiftFrom - 4) * grid.stepEm;
 		
 		trainerStaffContainers().css({'padding-top': paddingTop+'em', 'padding-bottom': paddingBottom+'em'});
 		applyStaffVisibility();
@@ -2056,6 +2190,7 @@ $(function(){
 		window.HTP.applyLineMarkers = applyLineMarkers;
 		window.HTP.applyNoteColours = applyNoteColours;
 		window.HTP.applyStaffVisibility = applyStaffVisibility;
+		window.HTP.relayoutForGrid = relayoutForGrid;
 		
 		/*
 		 * Notation primitives for modules that draw their own staves — see
@@ -2063,7 +2198,7 @@ $(function(){
 		 * the render helpers, which only touch the element you hand them.
 		 */
 		window.HTP.notation = {
-			shiftSize: settings.shiftSize,
+			get shiftSize(){ return grid.stepEm; },
 			renderStaffLines: renderStaffLines,
 			/* Where a given shift sits, in em from the top of the staff box. The
 			 * staff lines, the landmark markings and the noteheads are all placed
@@ -2078,7 +2213,7 @@ $(function(){
 			staffOffsetEm: function(upperClefId, lowerClefId){
 				if (!clefs[upperClefId] || !clefs[lowerClefId])
 					return 0;
-				return (clefs[lowerClefId].shift - clefs[upperClefId].shift) * settings.shiftSize - 2;
+				return (clefs[lowerClefId].shift - clefs[upperClefId].shift) * grid.stepEm - 2;
 			},
 			buildNoteGlyph: buildNoteGlyph,
 			buildClefSymbol: function(clefId){
@@ -2119,6 +2254,8 @@ $(function(){
 		};
 	}
 	
+	recomputeGrid();
+	watchGrid();
 	$('.staff').each(function(){ renderStaffLines($(this)); });
 	
 	Object.keys(levels).forEach(function(l){

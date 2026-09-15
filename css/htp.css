@@ -716,23 +716,6 @@ div.staff div.lines .htp-staffline {
 	.htp-installhint { font-size: 10px; }
 }
 
-/* ------------------------------------------------ notehead line alignment */
-
-/*
- * Nudge noteheads up by a hair so they sit exactly on their line.
- *
- * The staff lines, the ledger lines and the landmark markings are all placed at
- * markerTopEm(), which corresponds to 0.88164em down a symbol's 2em box — that
- * is where the line artwork draws its stroke. The notehead artwork's painted
- * centre falls at 0.88558em inside the same box, so every notehead rendered a
- * constant 0.00394em low: a third of a pixel at the default size, invisible on
- * its own, but the lines use shape-rendering:crispEdges and snap to the device
- * pixel grid while an antialiased notehead does not — so on a high-DPI screen
- * the two can land a whole pixel apart and the note reads as off its line.
- *
- * The 100em here is the original stylesheet's positioning trick, not a value of
- * its own; this only subtracts the artwork's own bias from it.
- */
-div.staff div.symbol.note svg:not(.line) {
-	margin-top: calc(100em - 0.00394em);
-}
+/* The notehead's own artwork bias is handled in js/code.js now, by
+   glyphTopEm(): each glyph is placed so that what it DRAWS lands on the line,
+   which needs the grid's snapped origin and cannot be a constant here. */
