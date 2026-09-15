@@ -839,9 +839,10 @@
 	 * Say where a note is, the way the method actually reads it: as a route from
 	 * the nearest landmark, not as a bare letter. The distance is the difference
 	 * of two diatonic indices, which is the same number the staff shift is built
-	 * from.
+	 * from — so this needs no clef, and a by-name prompt gets the same hint a
+	 * staff prompt does.
 	 */
-	function routeTo(clefId, sound) {
+	function routeTo(sound) {
 		var d = diatonicOf(sound);
 		if (d === null) return nameOf(sound);
 
@@ -1048,8 +1049,7 @@
 		var clefId = current.item.clef;
 		setFeedback('bad',
 			'<div class="htp-pp__fixline">You played <b>' + nameOf(played) + '</b>.</div>'
-			+ '<div class="htp-pp__fixline">It is '
-			+ (clefId ? routeTo(clefId, target) : landmarkChip(target)) + '.</div>'
+			+ '<div class="htp-pp__fixline">It is ' + routeTo(target) + '.</div>'
 			+ '<div class="htp-pp__fixhint">Play it now.</div>');
 
 		if (clefId) {
