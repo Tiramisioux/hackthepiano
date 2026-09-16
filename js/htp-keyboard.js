@@ -36,6 +36,12 @@
 	var STORAGE_RANGE = 'htp.keyboard.range';
 	var BLACK_PITCH_CLASSES = { 1: true, 3: true, 6: true, 8: true, 10: true };
 	var NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+	/* The function keys, at absolute pitches — A0 to G#1. Drawn in their own
+	 * strip rather than left to the main keyboard, because the main keyboard only
+	 * draws the range you have chosen and these have to be reachable from all of
+	 * them. A real piano sends these notes whatever is on screen; this is how the
+	 * on-screen one keeps up. */
+	var FN_LOW = 21, FN_HIGH = 32;
 
 	/* Computer-keyboard mapping, semitone offsets from the base octave's C. */
 	var KEY_MAP = {
@@ -63,7 +69,7 @@
 	var computerHeld = {};
 	var baseNote = 60;             /* C4, base of the computer octave */
 	var rangeIndex = DEFAULT_RANGE;
-	var drawer, keysEl, statusEl, octaveLabel, rangeLabel;
+	var drawer, keysEl, fnKeysEl, statusEl, octaveLabel, rangeLabel;
 
 	function isBlack(note) {
 		return !!BLACK_PITCH_CLASSES[((note % 12) + 12) % 12];
@@ -285,6 +291,24 @@
 		body.className = 'htp-keyboard__body';
 		body.id = 'htpKeyboardBody';
 
+		fnKeysEl = document.createElement('div');
+		fnKeysEl.className = 'htp-fnkeys';
+		fnKeysEl.title = 'Function keys — hold one to name a key, then play a chord';
+		var fnLabel = document.createElement('span');
+		fnLabel.className = 'htp-fnkeys__label';
+		fnLabel.textContent = 'Fn';
+		fnKeysEl.appendChild(fnLabel);
+		for (var fnNote = FN_LOW; fnNote <= FN_HIGH; fnNote++) {
+			var fnKeyEl = document.createElement('button');
+			fnKeyEl.type = 'button';
+			fnKeyEl.className = 'htp-fnkey htp-key'
+				+ (isBlack(fnNote) ? ' htp-fnkey--black' : '');
+			fnKeyEl.setAttribute('data-note', String(fnNote));
+			fnKeyEl.textContent = NOTE_NAMES[((fnNote % 12) + 12) % 12].replace('#', '\u266f');
+			fnKeysEl.appendChild(fnKeyEl);
+		}
+		body.appendChild(fnKeysEl);
+
 		keysEl = document.createElement('div');
 		keysEl.className = 'htp-keys';
 		body.appendChild(keysEl);
@@ -300,7 +324,8 @@
 		if (isNaN(rangeIndex)) rangeIndex = DEFAULT_RANGE;
 		setRange(rangeIndex);
 
-		bindPointer();
+		bindPointer(keysEl);
+		bindPointer(fnKeysEl);
 		bindComputerKeyboard();
 		setOpen(readStored(STORAGE_OPEN, '1') === '1');
 	}
@@ -308,14 +333,25 @@
 	/* -------------------------------------------------------- note plumbing */
 
 	function highlight(note, on) {
-		var el = keyElements[note];
-		if (!el) return;                       /* outside the visible range */
+		/* Both surfaces: the key in the main keyboard if that range draws it, and
+		 * the function strip if the note is one of its twelve. A function key is
+		 * often the only one of the two on screen, and holding it with no feedback
+		 * at all reads as the press not registering. */
+		var targets = [];
+		if (keyElements[note]) targets.push(keyElements[note]);
+		if (fnKeysEl) {
+			var fn = fnKeysEl.querySelector('[data-note="' + note + '"]');
+			if (fn) targets.push(fn);
+		}
+		if (!targets.length) return;           /* outside every visible surface */
+
 		if (on) {
 			activeNotes[note] = (activeNotes[note] || 0) + 1;
-			el.classList.add('is-active');
+			targets.forEach(function (el) { el.classList.add('is-active'); });
 		} else {
 			activeNotes[note] = Math.max(0, (activeNotes[note] || 0) - 1);
-			if (!activeNotes[note]) el.classList.remove('is-active');
+			if (!activeNotes[note])
+				targets.forEach(function (el) { el.classList.remove('is-active'); });
 		}
 	}
 
@@ -350,8 +386,8 @@
 		});
 	}
 
-	function bindPointer() {
-		keysEl.addEventListener('pointerdown', function (e) {
+	function bindPointer(el) {
+		el.addEventListener('pointerdown', function (e) {
 			var note = noteFromEvent(e);
 			if (note === null) return;
 			e.preventDefault();
@@ -361,12 +397,12 @@
 
 			/* Captured per pointer, so each finger keeps sending to us even once
 			 * it slides off the key it started on. */
-			if (keysEl.setPointerCapture) {
-				try { keysEl.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
+			if (el.setPointerCapture) {
+				try { el.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
 			}
 		});
 
-		keysEl.addEventListener('pointermove', function (e) {
+		el.addEventListener('pointermove', function (e) {
 			var held = pointerNotes[e.pointerId];
 			if (held === undefined) return;
 
@@ -391,12 +427,12 @@
 
 			release(held);
 			delete pointerNotes[e.pointerId];
-			if (keysEl.releasePointerCapture) {
-				try { keysEl.releasePointerCapture(e.pointerId); } catch (err) { /* ignore */ }
+			if (el.releasePointerCapture) {
+				try { el.releasePointerCapture(e.pointerId); } catch (err) { /* ignore */ }
 			}
 		}
-		keysEl.addEventListener('pointerup', endPointer);
-		keysEl.addEventListener('pointercancel', endPointer);
+		el.addEventListener('pointerup', endPointer);
+		el.addEventListener('pointercancel', endPointer);
 		window.addEventListener('blur', releaseAllPointers);
 	}
 
