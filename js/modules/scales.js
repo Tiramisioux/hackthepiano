@@ -490,7 +490,7 @@
 			notation().renderStaffLines(staff);
 		});
 
-		$(el).find('.htp-scales__notation').append(container);
+		$(el).find('.htp-scales__notation').prepend(container);
 	}
 
 	/*
@@ -911,10 +911,13 @@
 	/* Light the notes you are actually playing, in both staves at once, so a
 	 * note played in one hand shows up wherever it appears. */
 	/*
-	 * The diagrams are live, not pictures. The keys you are holding light up
-	 * inside every chord that contains them, and the card whose notes you have
-	 * played exactly is marked — so finding a progression is a matter of playing
-	 * until the cards light up in the order you want, rather than reading them.
+	 * The diagrams react to a COMPLETE chord, not to the notes inside one.
+	 *
+	 * Lighting each held note wherever it appeared meant a single C lit three of
+	 * the seven cards at once, none of them because you had played that chord.
+	 * Reacting only to the whole thing makes a lit card mean something: you just
+	 * played this. Which is also what makes a progression findable — play until
+	 * the cards light in the order you want.
 	 */
 	function applyChordPlaying() {
 		var panel = root.querySelector('.htp-scales__chords');
@@ -922,20 +925,16 @@
 
 		var playing = {};
 		Object.keys(held).forEach(function (n) { playing[(((n % 12) + 12) % 12)] = true; });
-		var heldPcs = Object.keys(playing).map(Number).sort(function (a, b) { return a - b; }).join(',');
+		var heldPcs = Object.keys(playing).map(Number)
+			.sort(function (a, b) { return a - b; }).join(',');
 
 		$('.htp-scales__chord', panel).each(function () {
 			var card = $(this);
-			card.toggleClass('is-playing', heldPcs !== '' && card.attr('data-pcs') === heldPcs);
-			/* is-active is the keyboard's own pressed tint, so a key lights here
-			 * exactly as it does in the drawer below. */
+			var complete = heldPcs !== '' && card.attr('data-pcs') === heldPcs;
+			card.toggleClass('is-playing', complete);
 			card.find('[data-pc]').each(function () {
-				/* Only where the note belongs to THIS chord. Lighting every held
-				 * key in every diagram lights three keys in all seven cards and
-				 * says nothing; lighting only the chord tones you are holding
-				 * shows how much of each chord is under your hands. */
-				var mine = this.classList.contains('is-hinted');
-				this.classList.toggle('is-active', mine && !!playing[this.getAttribute('data-pc')]);
+				this.classList.toggle('is-active',
+					complete && this.classList.contains('is-hinted'));
 			});
 		});
 	}
@@ -967,10 +966,15 @@
 				+     '</label>'
 				+   '</header>'
 				+   '<div class="htp-scales__body">'
-				+     '<div class="htp-scales__notation"></div>'
+				+     '<div class="htp-scales__notation">'
+				/* The readout lives WITH the staves, not after the body. After the
+				 * body it sits below the chord column, which is far taller — so
+				 * with chords showing, the name of what you played scrolled off
+				 * the bottom instead of appearing under the music. */
+				+       '<div class="htp-readout htp-scales__readout"></div>'
+				+     '</div>'
 				+     '<aside class="htp-scales__chords" hidden></aside>'
 				+   '</div>'
-				+   '<div class="htp-readout htp-scales__readout"></div>'
 				+ '</div>';
 
 			selectEl = el.querySelector('.htp-scales__pick');
