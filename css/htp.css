@@ -1137,9 +1137,9 @@ body.htp-pp-nolabels .htp-key__label { visibility: hidden; }
    large and the pale wash reads fine; here it is a few pixels wide and sitting
    on the pale hint already, so the same colour would be no change at all. */
 .htp-scales__mini .htp-key--white.is-hinted.is-active,
-.htp-scales__mini .htp-key--white.is-active { background: #6fb9e6; }
+.htp-scales__mini .htp-key--white.is-active { background: #4da6e0; }
 .htp-scales__mini .htp-key--black.is-hinted.is-active,
-.htp-scales__mini .htp-key--black.is-active { background: #15679c; }
+.htp-scales__mini .htp-key--black.is-active { background: #0d76bb; }
 .htp-scales__mini .htp-key--white { border-width: 1px; border-color: #999; border-radius: 0 0 2px 2px; }
 .htp-scales__mini .htp-key--black { border-radius: 0 0 2px 2px; }
 
@@ -1164,34 +1164,38 @@ body.htp-pp-nolabels .htp-key__label { visibility: hidden; }
 
 /* A scale note is a reference, not a question: grey until you play it.
 
-   The symbol is sized to the NOTEHEAD, not to the glyph. css/styles.css
-   right-aligns every glyph inside its symbol so the heads of a chord stack in
-   one column, and a glyph carrying an accidental is much wider than its head —
-   so in a wide symbol the head ends up hard right while the ledger line, which
-   spans the symbol, sits to its left. Measured, the head was 49px right of the
-   ledger's centre.
+   The symbol is left to shrink-wrap its glyph, as the trainer's own notes do.
+   An earlier version pinned it to 0.44em — the width of a notehead — so that the
+   ledger line, which spans the symbol, would be centred on the head. That works
+   for a bare notehead and silently amputates every accidental: a flat is drawn
+   to the LEFT of the head inside the same glyph, so it fell outside the symbol
+   and was clipped away. F major lost its B-flat while the DOM still reported the
+   path as present, 20px wide and filled.
 
-   Sizing the symbol to the head and nudging the glyph right by half the
-   remainder puts the head in the middle, which is where the ledger already is.
-   The accidental simply overhangs to the left, which is where it belongs.
-   The ledger keeps styles.css's own left:0/right:0 — giving that SVG an explicit
-   width rescales the whole artwork under the default preserveAspectRatio. */
+   Centring is done by measurement instead — alignLedgers() and alignColumns()
+   read where the head actually paints — which needs no assumption about the
+   glyph's width and so cannot cut anything off. */
+/* Wide enough to hold a glyph WITH its accidental.
+
+   The symbol's glyph is absolutely positioned, so it contributes nothing to a
+   shrink-wrapped width and the box collapses to zero — leaving the notes drawn
+   somewhere off to the left, or not at all. It needs an explicit width, and that
+   width has to cover the accidental as well as the head: at 0.44em, the width of
+   a notehead alone, every flat and sharp fell outside the box and was clipped
+   away. F major lost its B-flat while the DOM still reported the path present,
+   20px wide and filled.
+
+   Centring is not this rule's job. alignLedgers() and alignColumns() read where
+   the head actually paints, so the box can be as generous as it needs to be. */
 div.staff div.symbol.note.htp-scale-note {
 	right: auto;
-	width: 0.44em;
-	margin-left: -0.22em;
+	width: 1em;
+	margin-left: -0.5em;
 }
-div.staff div.symbol.note.htp-scale-note svg:not(.line) { right: 0.085em; }
-/* Centre the ledger on the notehead.
-
-   The offset is set from JS, per note, by measuring the painted stroke against
-   the painted notehead — see alignLedgers() in js/modules/scales.js. A constant
-   cannot do it: a glyph carrying an accidental puts its head in a different
-   place within the SVG than a bare one, so one offset fixes the naturals and
-   leaves every sharp and flat 19px out. `right: auto` because an element with
-   an explicit width and both offsets set is over-constrained, and `right` is
-   the one the browser drops. */
+/* alignLedgers() sets `left` from the painted notehead; `right: auto` keeps the
+   pair from being over-constrained, which would drop one of them. */
 div.staff div.symbol.note.htp-scale-note svg.line { right: auto; }
+
 .htp-scale-note svg path { fill: #9aa0a8; }
 .htp-scale-note svg .htp-stem { fill: #9aa0a8; }
 /* Bright blue, the same hue the key is hinted with, so the staff and the
@@ -1252,8 +1256,8 @@ div.staff div.symbol.note.htp-scale-note svg.line { right: auto; }
    The finger numbers keep their strength: they are the information, and the
    tint is only there to group them. */
 .htp-key.is-hinted { --htp-key-hint: #0d8ecf; }
-.htp-key--white.is-hinted { background: #f0f9fe; }
-.htp-key--black.is-hinted { background: #24566e; }
+.htp-key--white.is-hinted { background: #e2f1fc; }
+.htp-key--black.is-hinted { background: #2d6a8a; }
 /* Pressed beats hinted, in both directions, whichever class was written last. */
 .htp-key--white.is-hinted.is-active { background: var(--htp-accent-soft); }
 .htp-key--black.is-hinted.is-active { background: var(--htp-accent); }
