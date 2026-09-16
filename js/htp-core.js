@@ -402,6 +402,10 @@ window.HTP = (function (window, document) {
 		 * alike. 75 is 1.5x the original stylesheet's 50. Being a px value it
 		 * also scales with the browser's own zoom, like the rest of the layout. */
 		staffSize: 75,
+		/* Label the function-key strip. Off by default: the twelve keys read
+		 * clearly enough once you know what they are for, and the caption is
+		 * mostly useful while you are still learning that. */
+		showFnLegend: false,
 		/* Which landmarks are drawn, on the staff and on the keys alike. */
 		landmarkC: true,
 		landmarkF: true,
