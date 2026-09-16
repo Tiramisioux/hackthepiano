@@ -1034,7 +1034,7 @@ body.htp-pp-nolabels .htp-key__label { visibility: hidden; }
 }
 
 .htp-scales__chords {
-	flex: 0 0 196px;
+	flex: 0 0 225px;
 	border-left: 1px solid var(--htp-border);
 	padding-left: 1.1em;
 	font-size: 13px;
@@ -1043,7 +1043,7 @@ body.htp-pp-nolabels .htp-key__label { visibility: hidden; }
    and lets you change it, which a heading could not. */
 .htp-scales__progpick {
 	width: 100%;
-	font-size: 14px;
+	font-size: 16px;
 	font-weight: 700;
 	color: var(--htp-accent);
 	background: #fff;
@@ -1077,11 +1077,11 @@ body.htp-pp-nolabels .htp-key__label { visibility: hidden; }
 	gap: 0.45em;
 	line-height: 1.2;
 }
-.htp-scales__numeral { font-weight: 700; color: var(--htp-accent); font-size: 14px; }
+.htp-scales__numeral { font-weight: 700; color: var(--htp-accent); font-size: 16px; }
 /* Chords outside the chosen progression stay legible but recede. */
 .htp-scales__chord:not(.is-inprog) .htp-scales__numeral { opacity: 0.45; }
 .htp-scales__chord:not(.is-inprog) .htp-scales__chordname { color: var(--htp-muted); }
-.htp-scales__chordname { font-size: 13px; color: var(--htp-ink); }
+.htp-scales__chordname { font-size: 15px; color: var(--htp-ink); }
 
 /* Step number, so a repeated chord reads as two places in the progression
    rather than one card drawn twice. */
@@ -1113,8 +1113,8 @@ body.htp-pp-nolabels .htp-key__label { visibility: hidden; }
 	display: block;
 	flex: 0 0 auto;
 	position: relative;
-	width: 174px;
-	height: 74px;
+	width: 200px;
+	height: 85px;
 	margin: 0;
 }
 .htp-scales__mini .htp-key { cursor: default; }
@@ -1129,7 +1129,7 @@ body.htp-pp-nolabels .htp-key__label { visibility: hidden; }
 
 /* The panel is ~196px and the staves read fine down to ~420px, so the two sit
    side by side to about 620px. Below that, stack. */
-@media (max-width: 620px) {
+@media (max-width: 650px) {
 	.htp-scales__body { flex-direction: column; }
 	.htp-scales__chords { flex: 1 1 auto; border-left: none; padding-left: 0;
 		border-top: 1px solid var(--htp-border); padding-top: 0.8em; }
