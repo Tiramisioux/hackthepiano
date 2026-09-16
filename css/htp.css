@@ -1286,3 +1286,52 @@ div.staff div.symbol.note.htp-scale-note svg.line { right: auto; }
 	.htp-scales__hint { display: none; }
 	.htp-key__finger { font-size: 9px; }
 }
+
+/* --------------------------------------------------------- function keys */
+
+/* The twelve function keys, at absolute pitches A0–G♯1, in their own strip.
+
+   They live outside the main keyboard because that only draws the range you
+   have chosen, and these have to be reachable from every range — a real piano
+   sends them whatever is on screen, and the on-screen one should too. */
+.htp-fnkeys {
+	display: flex;
+	align-items: stretch;
+	gap: 2px;
+	padding: 3px 6px;
+	border-bottom: 1px solid var(--htp-border);
+	background: #fafafa;
+	touch-action: none;
+}
+.htp-fnkeys__label {
+	align-self: center;
+	font-size: 10px;
+	letter-spacing: 0.1em;
+	text-transform: uppercase;
+	color: var(--htp-muted);
+	padding-right: 0.4em;
+	flex: 0 0 auto;
+}
+.htp-fnkey {
+	position: static;          /* not laid out like a piano key */
+	flex: 1 1 0;
+	min-width: 0;
+	height: 20px;
+	font-size: 10px;
+	font-weight: 700;
+	line-height: 1;
+	color: var(--htp-ink);
+	background: #fff;
+	border: 1px solid var(--htp-border);
+	border-radius: 3px;
+	padding: 0;
+	cursor: pointer;
+}
+.htp-fnkey--black { background: #2a2a2a; color: #fff; border-color: #1c1c1c; }
+.htp-fnkey:hover { border-color: var(--htp-accent); }
+.htp-fnkey.is-active { background: var(--htp-accent); color: #fff; border-color: var(--htp-accent); }
+
+@media (max-width: 720px) {
+	.htp-fnkeys__label { display: none; }
+	.htp-fnkey { font-size: 9px; height: 18px; }
+}
