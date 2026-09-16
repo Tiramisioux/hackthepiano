@@ -180,7 +180,7 @@
 		{ id: 'optShowClefTreble',      setting: 'showClefTreble',      apply: null },
 		{ id: 'optShowClefBass',        setting: 'showClefBass',        apply: null },
 		{ id: 'optKeyNames',            setting: 'keyNames',            apply: null },
-		{ id: 'optShowFnLegend',        setting: 'showFnLegend',        apply: null },
+		{ id: 'optShowFnKeys',          setting: 'showFnKeys',          apply: null },
 		{ id: 'optOctaveNumbers',       setting: 'octaveNumbers',       apply: null },
 		{ id: 'optLandmarkC',           setting: 'landmarkC',           apply: 'applyLineMarkers' },
 		{ id: 'optLandmarkF',           setting: 'landmarkF',           apply: 'applyLineMarkers' },

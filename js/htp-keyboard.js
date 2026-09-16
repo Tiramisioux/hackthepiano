@@ -246,10 +246,12 @@
 		});
 	}
 
-	function applyFnLegend() {
+	/* The whole strip, not just its caption. It is an on-screen stand-in for keys
+	 * a real piano already has, so it is off unless asked for — and hiding only
+	 * the label left the twelve keys taking up room for nothing. */
+	function applyFnKeys() {
 		if (!fnKeysEl) return;
-		var label = fnKeysEl.querySelector('.htp-fnkeys__label');
-		if (label) label.hidden = !window.HTP.settings.showFnLegend;
+		fnKeysEl.hidden = !window.HTP.settings.showFnKeys;
 	}
 
 	function updateRangeLabel() {
@@ -313,7 +315,8 @@
 		fnKeysEl = document.createElement('div');
 		fnKeysEl.className = 'htp-fnkeys';
 		fnKeysEl.title = 'Function keys — hold one to name a key, then play a chord';
-		/* Shown or hidden by the "Fn legend" option — see applyFnLegend(). */
+		/* The caption. Shown with the strip; the strip itself is switched by the
+		 * "Fn keys" option — see applyFnKeys(). */
 		var fnLabel = document.createElement('span');
 		fnLabel.className = 'htp-fnkeys__label';
 		fnLabel.textContent = 'Fn';
@@ -561,9 +564,9 @@
 			else if (type === 0x80) highlight(bytes[1], false);
 		});
 
-		applyFnLegend();
+		applyFnKeys();
 		window.HTP.onSettingChange(function (key) {
-			if (key === 'showFnLegend') applyFnLegend();
+			if (key === 'showFnKeys') applyFnKeys();
 			/* colourKeys is the master switch; landmarkC/F/G pick which of them
 			 * are drawn, on the keys and on the staff alike. */
 			if (key === 'keyNames' || key.indexOf('landmark') === 0) {
