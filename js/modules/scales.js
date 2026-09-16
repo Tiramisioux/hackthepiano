@@ -734,6 +734,10 @@
 		var degrees = group.steps.length - 1;          /* drop the closing octave */
 		if (degrees < 7) return null;                  /* a pentatonic has no triads of its own */
 
+		/* Number from the parent major scale, so a mode's chords carry the
+		 * functions they are known by. */
+		var parentShift = PARENT_OFFSET[group.id];
+
 		var out = [];
 		for (var d = 0; d < degrees; d++) {
 			var sounds = [0, 2, 4].map(function (skip) {
@@ -745,7 +749,16 @@
 			QUALITY.forEach(function (q) {
 				if (q.steps.every(function (v, k) { return v === intervals[k]; })) quality = q;
 			});
-			var numeral = ROMAN[d];
+			/* The degree this chord occupies in the parent key. For the major
+			 * scale that is just d; for a mode it is d shifted round by where the
+			 * mode starts. */
+			var parentDegree = d;
+			if (parentShift !== undefined) {
+				var semis = (group.steps[d] + parentShift) % 12;
+				var MAJOR_DEGREE_AT = { 0: 0, 2: 1, 4: 2, 5: 3, 7: 4, 9: 5, 11: 6 };
+				if (MAJOR_DEGREE_AT[semis] !== undefined) parentDegree = MAJOR_DEGREE_AT[semis];
+			}
+			var numeral = ROMAN[parentDegree];
 			if (quality && quality.numeral === 'lower') numeral = numeral.toLowerCase();
 			out.push({ numeral: numeral + (quality ? quality.mark : ''), sounds: sounds,
 				degree: d + 1 });
@@ -1087,6 +1100,18 @@
 	 * you named, so the degree tells us nothing; those fall back to reading the
 	 * chord on its own. Anything unrecognised changes nothing.
 	 */
+	/*
+	 * Where each mode's root sits in its PARENT major scale, in semitones. Used to
+	 * number the chords by their function in that key rather than by their place
+	 * in the mode: in G Mixolydian, D minor is the ii of C — which is what a
+	 * ii-V-I means — and calling it the v of G Mixolydian, though true, is not
+	 * what anyone reading the progression wants.
+	 */
+	var PARENT_OFFSET = {
+		major: 0, dorian: 2, phrygian: 4, lydian: 5,
+		mixolydian: 7, minor: 9, locrian: 11
+	};
+
 	var MODE_BY_DEGREE = {
 		0:  { group: 'major',      quality: 'major' },
 		2:  { group: 'dorian',     quality: 'minor' },
@@ -1130,20 +1155,40 @@
 		show();
 	}
 
+	/*
+	 * Name a chord from the notes, whichever way round they are played.
+	 *
+	 * Every note is tried as the root, not just the lowest. Measuring from the
+	 * bottom note only recognises root position, so the first inversion of D
+	 * minor — F A D, which is simply where the hand falls much of the time —
+	 * matched nothing and the command did nothing at all. That is what "it works
+	 * once and then I am stuck" was: the first chord happened to be root
+	 * position and the next one was not.
+	 *
+	 * Pitch classes, so a doubled root, a bass note an octave down or a chord
+	 * spread across both hands all reduce to the same shape.
+	 */
 	function shapeOf(sounds) {
-		var ordered = sounds.slice().sort(function (a, b) { return a - b; });
-		var root = ordered[0];
-		var steps = ordered.map(function (n) { return (((n - root) % 12) + 12) % 12; })
+		var pcs = sounds.map(function (n) { return (((n % 12) + 12) % 12); })
 			.filter(function (v, i, a) { return a.indexOf(v) === i; })
 			.sort(function (a, b) { return a - b; });
-		var match = null;
-		CHORD_SHAPES_IN.forEach(function (entry) {
-			if (match) return;
-			if (entry.steps.length === steps.length
-				&& entry.steps.every(function (v, i) { return v === steps[i]; }))
-				match = entry;
-		});
-		return { rootPc: (((root % 12) + 12) % 12), match: match };
+
+		for (var i = 0; i < pcs.length; i++) {
+			var root = pcs[i];
+			var steps = pcs.map(function (pc) { return (((pc - root) % 12) + 12) % 12; })
+				.sort(function (a, b) { return a - b; });
+			var match = null;
+			CHORD_SHAPES_IN.forEach(function (entry) {
+				if (match) return;
+				if (entry.steps.length === steps.length
+					&& entry.steps.every(function (v, k) { return v === steps[k]; }))
+					match = entry;
+			});
+			if (match) return { rootPc: root, match: match };
+		}
+
+		var lowest = sounds.slice().sort(function (a, b) { return a - b; })[0];
+		return { rootPc: (((lowest % 12) + 12) % 12), match: null };
 	}
 
 	function runCommand(sounds, fnNote) {

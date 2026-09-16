@@ -30,7 +30,9 @@
 	 * phone, where a full-width black key leaves too little white key to hit.
 	 * JS publishes the white-key width; CSS does the multiplication. */
 	var MAX_WHITE_KEY_PX = 58;          /* keep few-key ranges sane  */
-	var MIN_WHITE_KEY_PX = 15;          /* below this, scroll        */
+	/* Below this a white key is too narrow to aim at, so instead of shrinking
+	 * further the keyboard overflows and you scroll it to the part you want. */
+	var MIN_WHITE_KEY_PX = 30;
 
 	var STORAGE_OPEN = 'htp.keyboard.open';
 	var STORAGE_RANGE = 'htp.keyboard.range';
@@ -69,7 +71,7 @@
 	var computerHeld = {};
 	var baseNote = 60;             /* C4, base of the computer octave */
 	var rangeIndex = DEFAULT_RANGE;
-	var drawer, keysEl, fnKeysEl, statusEl, octaveLabel, rangeLabel;
+	var drawer, keysEl, keysScroller, fnKeysEl, statusEl, octaveLabel, rangeLabel;
 
 	function isBlack(note) {
 		return !!BLACK_PITCH_CLASSES[((note % 12) + 12) % 12];
@@ -160,6 +162,16 @@
 		return window.HTP.landmarkEnabled(pitchClass === 5 ? 'F' : 'G') ? noteName(note) : null;
 	}
 
+	/* Put middle C in view after a rebuild. A wide range is wider than the pane
+	 * now, and opening on the bottom octaves of an 88-key board — nowhere near
+	 * where anybody plays — would just mean scrolling every time. */
+	function scrollToMiddle() {
+		if (!keysScroller || !keyElements[60]) return;
+		var key = keyElements[60];
+		var target = key.offsetLeft - (keysScroller.clientWidth / 2) + (key.offsetWidth / 2);
+		keysScroller.scrollLeft = Math.max(0, target);
+	}
+
 	function setRange(index) {
 		rangeIndex = Math.max(0, Math.min(RANGES.length - 1, index));
 		writeStored(STORAGE_RANGE, rangeIndex);
@@ -169,6 +181,7 @@
 		clampBaseNote();
 		updateRangeLabel();
 		updateOctaveLabel();
+		scrollToMiddle();
 		rangeListeners.slice().forEach(function (fn) {
 			try { fn(RANGES[rangeIndex]); }
 			catch (e) { console.error('[HTP] keyboard range listener failed', e); }
@@ -309,9 +322,14 @@
 		}
 		body.appendChild(fnKeysEl);
 
+		var scroller = document.createElement('div');
+		scroller.className = 'htp-keyboard__scroller';
+
 		keysEl = document.createElement('div');
 		keysEl.className = 'htp-keys';
-		body.appendChild(keysEl);
+		scroller.appendChild(keysEl);
+		body.appendChild(scroller);
+		keysScroller = scroller;
 
 		drawer.appendChild(bar);
 		drawer.appendChild(body);
