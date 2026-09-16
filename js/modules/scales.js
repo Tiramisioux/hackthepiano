@@ -743,13 +743,53 @@
 		return (stored >= 0 && stored < list.length) ? stored : 0;
 	}
 
+	var CHORD_HOLD_MS = 1200;
+	var chordTimer = null;
+	var ringing = [];
+
+	/*
+	 * Play a chord through the shared MIDI bus rather than straight at the
+	 * synth. Everything that listens to the bus then reacts on its own: the
+	 * drawer lights the keys, the staff colours the notes, the readout names what
+	 * is sounding, and this panel marks the matching card. None of that needs
+	 * wiring here, and a chord played from a card is indistinguishable from one
+	 * played by hand — which is the point.
+	 */
+	function playChord(sounds) {
+		silenceChord();
+		ringing = placeInView(sounds);
+		ringing.forEach(function (n) { window.HTP.midi.noteOn(n, 100); });
+		chordTimer = window.setTimeout(silenceChord, CHORD_HOLD_MS);
+	}
+
+	function silenceChord() {
+		window.clearTimeout(chordTimer);
+		chordTimer = null;
+		ringing.forEach(function (n) { window.HTP.midi.noteOff(n); });
+		ringing = [];
+	}
+
+	/* A chord lit on keys that are not drawn teaches nothing, so shift it by
+	 * octaves until it sits inside the range the keyboard is showing. */
+	function placeInView(sounds) {
+		var kb = window.HTP.keyboard;
+		if (!kb || !kb.visibleRange) return sounds.slice();
+		var seen = kb.visibleRange();
+		var out = sounds.slice();
+		while (Math.min.apply(null, out) < seen.low) out = out.map(function (n) { return n + 12; });
+		while (Math.max.apply(null, out) > seen.high) out = out.map(function (n) { return n - 12; });
+		return out;
+	}
+
 	function chordCard(chord, inProg, step) {
 		var described = notation().describeSounds(chord.sounds.slice(), chord.sounds[0]);
 		var pcs = chord.sounds.map(function (n) { return (((n % 12) + 12) % 12); })
 			.filter(function (v, k, a) { return a.indexOf(v) === k; })
 			.sort(function (a, b) { return a - b; });
 		return '<li class="htp-scales__chord' + (inProg ? ' is-inprog' : '') + '"'
-			+ ' data-pcs="' + pcs.join(',') + '">'
+			+ ' data-pcs="' + pcs.join(',') + '"'
+			+ ' data-sounds="' + chord.sounds.join(',') + '"'
+			+ ' tabindex="0" role="button" title="Play this chord">'
 			+ (step ? '<span class="htp-scales__step">' + step + '</span>' : '')
 			+ miniKeyboard(chord.sounds)
 			+ '<span class="htp-scales__chordlabel">'
@@ -821,6 +861,12 @@
 		html += '</ul>';
 
 		panel.innerHTML = html;
+
+		$('.htp-scales__chord', panel).on('click keydown', function (event) {
+			if (event.type === 'keydown' && event.key !== 'Enter' && event.key !== ' ') return;
+			event.preventDefault();
+			playChord($(this).attr('data-sounds').split(',').map(Number));
+		});
 
 		var picker = panel.querySelector('.htp-scales__progpick');
 		if (picker) picker.addEventListener('change', function () {
@@ -1002,6 +1048,7 @@
 
 		onHide: function () {
 			if (unsubscribe) { unsubscribe(); unsubscribe = null; }
+			silenceChord();
 			sounding = {};
 			held = {};
 			heldOrder = [];
