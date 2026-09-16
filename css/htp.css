@@ -1318,15 +1318,6 @@ div.staff div.symbol.note.htp-scale-note svg.line { right: auto; }
 	background: #fafafa;
 	touch-action: none;
 }
-.htp-fnkeys__label {
-	align-self: center;
-	font-size: 10px;
-	letter-spacing: 0.1em;
-	text-transform: uppercase;
-	color: var(--htp-muted);
-	padding-right: 0.4em;
-	flex: 0 0 auto;
-}
 .htp-fnkey {
 	position: static;          /* not laid out like a piano key */
 	flex: 1 1 0;
@@ -1347,6 +1338,5 @@ div.staff div.symbol.note.htp-scale-note svg.line { right: auto; }
 .htp-fnkey.is-active { background: var(--htp-accent); color: #fff; border-color: var(--htp-accent); }
 
 @media (max-width: 720px) {
-	.htp-fnkeys__label { display: none; }
 	.htp-fnkey { font-size: 9px; height: 18px; }
 }

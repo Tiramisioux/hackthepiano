@@ -307,10 +307,6 @@
 		fnKeysEl = document.createElement('div');
 		fnKeysEl.className = 'htp-fnkeys';
 		fnKeysEl.title = 'Function keys — hold one to name a key, then play a chord';
-		var fnLabel = document.createElement('span');
-		fnLabel.className = 'htp-fnkeys__label';
-		fnLabel.textContent = 'Fn';
-		fnKeysEl.appendChild(fnLabel);
 		for (var fnNote = FN_LOW; fnNote <= FN_HIGH; fnNote++) {
 			var fnKeyEl = document.createElement('button');
 			fnKeyEl.type = 'button';
