@@ -402,10 +402,11 @@ window.HTP = (function (window, document) {
 		 * alike. 75 is 1.5x the original stylesheet's 50. Being a px value it
 		 * also scales with the browser's own zoom, like the rest of the layout. */
 		staffSize: 75,
-		/* Label the function-key strip. Off by default: the twelve keys read
-		 * clearly enough once you know what they are for, and the caption is
-		 * mostly useful while you are still learning that. */
-		showFnLegend: false,
+		/* Show the row of function keys under the keyboard. Off by default: it is
+		 * an on-screen stand-in for keys a real piano already has, so most people
+		 * never need it, and it costs vertical space that the keys themselves can
+		 * use. A MIDI piano sends A0-G#1 whether this is on or not. */
+		showFnKeys: false,
 		/* Which landmarks are drawn, on the staff and on the keys alike. */
 		landmarkC: true,
 		landmarkF: true,
