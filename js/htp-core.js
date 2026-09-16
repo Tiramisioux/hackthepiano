@@ -65,8 +65,16 @@ window.HTP = (function (window, document) {
 		high: 32,               /* G#1 — twelve keys, one per pitch class */
 		down: null,             /* which one is held, if any              */
 		captured: [],
-		listeners: []
+		listeners: [],          /* fired on release                       */
+		watchers: []            /* fired on every note, while still held  */
 	};
+
+	function tellFnKey(list, command, held) {
+		list.slice().forEach(function (fn) {
+			try { fn(command, held); }
+			catch (e) { console.error('[HTP] function-key listener failed', e); }
+		});
+	}
 
 	function trackFunctionKey(bytes) {
 		var type = bytes[0] & 0xf0;
@@ -84,10 +92,7 @@ window.HTP = (function (window, document) {
 				var command = fnKey.captured.slice();
 				fnKey.down = null;
 				fnKey.captured = [];
-				fnKey.listeners.slice().forEach(function (fn) {
-					try { fn(command, held); }
-					catch (e) { console.error('[HTP] function-key listener failed', e); }
-				});
+				tellFnKey(fnKey.listeners, command, held);
 			}
 			return;
 		}
@@ -95,8 +100,14 @@ window.HTP = (function (window, document) {
 		/* Everything struck while one is held belongs to the command, whether or
 		 * not it is still down at release — that is what lets a chord be rolled
 		 * rather than struck exactly together. */
-		if (fnKey.down !== null && isOn && fnKey.captured.indexOf(note) === -1)
+		if (fnKey.down !== null && isOn && fnKey.captured.indexOf(note) === -1) {
 			fnKey.captured.push(note);
+			/* Reported as it is played, not only on release: a listener that can
+			 * already tell what you meant should be free to act on the chord the
+			 * moment it is down, rather than waiting for your hand to come off a
+			 * key at the other end of the piano. */
+			tellFnKey(fnKey.watchers, fnKey.captured.slice(), fnKey.down);
+		}
 	}
 
 	/* Publish a raw MIDI byte array on the bus. `source` is 'virtual' for the
@@ -570,7 +581,10 @@ window.HTP = (function (window, document) {
 			held: function () { return fnKey.down; },
 			range: function () { return { low: fnKey.low, high: fnKey.high }; },
 			setRange: function (low, high) { fnKey.low = low; fnKey.high = high; },
-			onCommand: function (fn) { fnKey.listeners.push(fn); }
+			onCommand: function (fn) { fnKey.listeners.push(fn); },
+			/* Every note, while the key is still held. Use this to act the instant
+			 * the notes say enough; onCommand is the backstop on release. */
+			onChange: function (fn) { fnKey.watchers.push(fn); }
 		},
 		setSetting: setSetting,
 		onSettingChange: function (fn) { settingListeners.push(fn); },

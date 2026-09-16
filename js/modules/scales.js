@@ -1196,6 +1196,46 @@
 		return { rootPc: (((lowest % 12) + 12) % 12), match: null };
 	}
 
+	/*
+	 * Act the moment the notes say enough.
+	 *
+	 * A recognised chord jumps immediately — that is the whole gesture, and
+	 * waiting for the function key to come up made it feel like nothing had
+	 * happened. A single note waits a moment first, because a single note is
+	 * usually the start of a chord and jumping twice would be worse than jumping
+	 * late. The release is the backstop for anything still unresolved.
+	 */
+	var SINGLE_NOTE_GRACE_MS = 160;
+	var commandTimer = null;
+	var commandActed = false;
+
+	function watchCommand(sounds, fnNote) {
+		window.clearTimeout(commandTimer);
+		commandTimer = null;
+		if (!current || !sounds.length) return;
+
+		if (sounds.length > 1) {
+			if (shapeOf(sounds).match) {
+				runCommand(sounds, fnNote);
+				commandActed = true;
+			}
+			return;
+		}
+
+		commandTimer = window.setTimeout(function () {
+			runCommand(sounds, fnNote);
+			commandActed = true;
+		}, SINGLE_NOTE_GRACE_MS);
+	}
+
+	function finishCommand(sounds, fnNote) {
+		window.clearTimeout(commandTimer);
+		commandTimer = null;
+		var acted = commandActed;
+		commandActed = false;
+		if (!acted && current && sounds.length) runCommand(sounds, fnNote);
+	}
+
 	function runCommand(sounds, fnNote) {
 		if (!sounds.length) return;
 		var basePc = (((fnNote % 12) + 12) % 12);
@@ -1302,9 +1342,10 @@
 			api.onMarkersChanged(function () {
 				if (current) show();
 			});
-			if (api.fnKey) api.fnKey.onCommand(function (sounds, fnNote) {
-				if (current) runCommand(sounds, fnNote);
-			});
+			if (api.fnKey) {
+				if (api.fnKey.onChange) api.fnKey.onChange(watchCommand);
+				api.fnKey.onCommand(finishCommand);
+			}
 
 			if (window.HTP.keyboard && window.HTP.keyboard.onRangeChange)
 				window.HTP.keyboard.onRangeChange(function () {
