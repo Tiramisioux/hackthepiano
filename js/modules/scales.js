@@ -1066,6 +1066,82 @@
 		}, KEY_CHANGE_MS);
 	}
 
+	/*
+	 * What the function key jumps to.
+	 *
+	 * A single note keeps the group you are in and just changes the root, which is
+	 * the same thing the held octave does — two ways to ask, one for each hand
+	 * position. A chord changes the TYPE as well, to the scale that chord is
+	 * normally played over: the mapping is the ordinary one, and where it is a
+	 * judgement call it follows pianoscales.org's own summary — Dorian over minor
+	 * sevenths, Mixolydian over dominants.
+	 *
+	 * Anything unrecognised changes nothing. Guessing a scale from a shape with no
+	 * settled answer would be worse than ignoring it.
+	 */
+	var CHORD_TO_GROUP = [
+		{ steps: [0, 4, 7],      group: 'major'      },
+		{ steps: [0, 3, 7],      group: 'minor'      },
+		{ steps: [0, 3, 6],      group: 'locrian'    },
+		{ steps: [0, 4, 7, 10],  group: 'mixolydian' },
+		{ steps: [0, 3, 7, 10],  group: 'dorian'     },
+		{ steps: [0, 4, 7, 11],  group: 'major'      },
+		{ steps: [0, 3, 6, 10],  group: 'locrian'    }
+	];
+
+	function groupIndexById(id) {
+		var found = -1;
+		GROUPS.forEach(function (g, i) { if (g.id === id && found < 0) found = i; });
+		return found;
+	}
+
+	function scaleIndexByPc(groupIndex, pc) {
+		var found = -1;
+		GROUPS[groupIndex].scales.forEach(function (scale, i) {
+			if (scale.pc === pc && found < 0) found = i;
+		});
+		return found;
+	}
+
+	function jumpTo(groupIndex, pc) {
+		if (groupIndex < 0) return false;
+		var index = scaleIndexByPc(groupIndex, pc);
+		if (index < 0) return false;
+		if (parseInt(groupEl.value, 10) !== groupIndex) {
+			groupEl.value = String(groupIndex);
+			fillScales(groupIndex);
+		}
+		selectEl.value = String(index);
+		show();
+		return true;
+	}
+
+	function runCommand(sounds) {
+		var ordered = sounds.slice().sort(function (a, b) { return a - b; });
+		var root = ordered[0];
+		var pc = (((root % 12) + 12) % 12);
+
+		/* One note: same group, new root. */
+		if (ordered.length === 1) {
+			jumpTo(parseInt(groupEl.value, 10), pc);
+			return;
+		}
+
+		var shape = ordered.map(function (n) { return (((n - root) % 12) + 12) % 12; })
+			.filter(function (v, i, a) { return a.indexOf(v) === i; })
+			.sort(function (a, b) { return a - b; });
+
+		var match = null;
+		CHORD_TO_GROUP.forEach(function (entry) {
+			if (match) return;
+			if (entry.steps.length === shape.length
+				&& entry.steps.every(function (v, i) { return v === shape[i]; }))
+				match = entry;
+		});
+		if (!match) return;
+		jumpTo(groupIndexById(match.group), pc);
+	}
+
 	function applySounding() {
 		$('.htp-scale-note, .htp-scales__finger', root).each(function () {
 			var el = $(this);
@@ -1150,6 +1226,10 @@
 			api.onMarkersChanged(function () {
 				if (current) show();
 			});
+			if (api.fnKey) api.fnKey.onCommand(function (sounds) {
+				if (current) runCommand(sounds);
+			});
+
 			if (window.HTP.keyboard && window.HTP.keyboard.onRangeChange)
 				window.HTP.keyboard.onRangeChange(function () {
 					if (current) show();
@@ -1162,6 +1242,10 @@
 			show();
 			if (unsubscribe) return;
 			unsubscribe = api.midi.subscribe(function (bytes) {
+				/* While the function key is down you are typing, not playing: the
+				 * notes are a command, so nothing here should light up or be named
+				 * as if you had played them. */
+				if (api.fnKey && api.fnKey.isDown()) return;
 				var type = bytes[0] & 0xf0;
 				if (type === 0x90 && bytes[2] > 0) {
 					sounding[bytes[1]] = true;
