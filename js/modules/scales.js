@@ -1022,6 +1022,50 @@
 		return placed;
 	}
 
+	/*
+	 * Hold an octave to change key: G2 with G3 switches C major practice to G
+	 * major, staying in whatever group you are in.
+	 *
+	 * The hold is not decoration. With the hands an octave or two apart, EVERY
+	 * note of a hands-together scale is already an octave pair — play the scale
+	 * and you would change key on every note. Requiring the pair to be the only
+	 * thing sounding, and to still be there after KEY_CHANGE_MS, separates a
+	 * deliberate gesture from ordinary playing: nothing in a scale is held that
+	 * long.
+	 *
+	 * Any exact multiple of twelve counts, because two octaves is the normal gap
+	 * between the hands in this tab and reaching for the same note in both is the
+	 * obvious way to ask.
+	 */
+	var KEY_CHANGE_MS = 600;
+	var keyChangeTimer = null;
+
+	function considerKeyChange() {
+		window.clearTimeout(keyChangeTimer);
+		keyChangeTimer = null;
+
+		var sounds = Object.keys(held).map(Number).sort(function (a, b) { return a - b; });
+		if (sounds.length !== 2) return;
+
+		var gap = sounds[1] - sounds[0];
+		if (gap < 12 || gap % 12 !== 0) return;
+
+		var pc = (((sounds[0] % 12) + 12) % 12);
+		var pick = selection();
+		var index = -1;
+		pick.group.scales.forEach(function (scale, i) {
+			if (scale.pc === pc && index < 0) index = i;
+		});
+		if (index < 0 || index === pick.index) return;
+
+		keyChangeTimer = window.setTimeout(function () {
+			var still = Object.keys(held).map(Number).sort(function (a, b) { return a - b; });
+			if (still.length !== 2 || still[0] !== sounds[0] || still[1] !== sounds[1]) return;
+			selectEl.value = String(index);
+			show();
+		}, KEY_CHANGE_MS);
+	}
+
 	function applySounding() {
 		$('.htp-scale-note, .htp-scales__finger', root).each(function () {
 			var el = $(this);
@@ -1043,7 +1087,7 @@
 				+   '<header class="htp-scales__head">'
 				+     '<span class="htp-scales__label">Scale</span>'
 				+     '<select class="htp-scales__group"></select>'
-				+     '<select class="htp-scales__pick"></select>'
+				+     '<select class="htp-scales__pick" title="Or hold an octave on the piano — G2 with G3 switches to G, in whatever group you are in"></select>'
 				+     '<label class="htp-scales__opt" title="Show the chords built from this scale, and the progression it is usually played in">'
 				+       '<input type="checkbox" class="htp-scales__chordtoggle"> Chords'
 				+     '</label>'
@@ -1131,12 +1175,15 @@
 				applySounding();
 				applyChordPlaying();
 				updateReadout();
+				considerKeyChange();
 			});
 		},
 
 		onHide: function () {
 			if (unsubscribe) { unsubscribe(); unsubscribe = null; }
 			silenceChord();
+			window.clearTimeout(keyChangeTimer);
+			keyChangeTimer = null;
 			sounding = {};
 			held = {};
 			heldOrder = [];
