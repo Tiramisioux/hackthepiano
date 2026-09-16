@@ -951,3 +951,276 @@ body.htp-pp-nolabels .htp-key__label { visibility: hidden; }
 	.htp-pp__nameval { font-size: 44px; }
 	.htp-pp__feedback { min-height: 3.6em; font-size: 14px; }
 }
+
+/* ------------------------------------------------------------------ scales */
+
+/* Natural height, not 100%. Two staves plus their fingering rows are taller
+   than a short pane, and squeezing them into a fixed-height flex column only
+   chose which end to cut off. .htp-pane already scrolls, so the honest answer
+   is to let the content be as tall as it is and hand the overflow to it. */
+.htp-scales {
+	display: flex;
+	flex-direction: column;
+	width: 100%;
+	max-width: 1180px;
+	margin: 0 auto;
+	padding: 0.8em 1.2em 1em;
+	gap: 0.6em;
+}
+.htp-scales [hidden] { display: none !important; }
+
+.htp-scales__head {
+	display: flex;
+	align-items: center;
+	gap: 0.7em;
+	flex-wrap: wrap;
+}
+.htp-scales__label {
+	font-size: 12px;
+	letter-spacing: 0.09em;
+	text-transform: uppercase;
+	color: var(--htp-muted);
+}
+.htp-scales__pick {
+	font-size: 15px;
+	font-weight: 600;
+	color: var(--htp-ink);
+	background: #fff;
+	border: 1px solid var(--htp-border);
+	border-radius: 4px;
+	padding: 0.25em 0.5em;
+	cursor: pointer;
+}
+.htp-scales__pick:hover { border-color: var(--htp-accent); }
+.htp-scales__group {
+	font-size: 15px;
+	font-weight: 600;
+	color: var(--htp-ink);
+	background: #fff;
+	border: 1px solid var(--htp-border);
+	border-radius: 4px;
+	padding: 0.25em 0.5em;
+	cursor: pointer;
+}
+.htp-scales__group:hover { border-color: var(--htp-accent); }
+.htp-scales__opt { margin: 0; font-weight: 400; font-size: 13px; display: flex;
+	align-items: center; gap: 0.4em; color: var(--htp-ink); }
+.htp-scales__readout { min-height: 3em; margin: 0 0 0.6em; }
+
+.htp-scales__notation {
+	flex: 1 1 auto;
+	display: flex;
+	flex-direction: column;
+	/* `safe` matters: two staves plus their fingering rows are taller than a
+	   short pane, and a plain `center` overflows EQUALLY in both directions —
+	   the top half ends up above the container, painting through the header, and
+	   no amount of scrolling can reach it. `safe` falls back to flex-start the
+	   moment the content stops fitting, so the overflow all goes downward where
+	   the scrollbar can get at it. */
+	justify-content: flex-start;
+	min-height: 0;
+}
+
+/* Staves on the left, the chords of the scale down the right. */
+.htp-scales__body { display: flex; gap: 1.4em; align-items: flex-start; }
+/* width:100% gives the column something to shrink FROM. Everything inside a
+   staff is absolutely positioned, so the notation has no intrinsic width of its
+   own — as a bare flex item with min-width:0 it collapsed to nothing and the
+   staves vanished entirely. */
+.htp-scales__body > .htp-scales__notation {
+	flex: 1 1 auto;
+	width: 100%;
+	min-width: 0;
+}
+
+.htp-scales__chords {
+	flex: 0 0 152px;
+	border-left: 1px solid var(--htp-border);
+	padding-left: 1.1em;
+	font-size: 13px;
+}
+.htp-scales__chords h3 {
+	font-size: 12px;
+	letter-spacing: 0.09em;
+	text-transform: uppercase;
+	color: var(--htp-muted);
+	margin: 0 0 0.2em;
+	font-weight: 600;
+}
+.htp-scales__prog {
+	font-weight: 700;
+	color: var(--htp-accent);
+	margin-bottom: 0.7em;
+	font-size: 14px;
+}
+.htp-scales__chordlist { list-style: none; margin: 0; padding: 0; }
+/* Diagram above, name under it — the keyboard is the thing being read, so it
+   gets the width and the label sits out of its way. */
+.htp-scales__chord {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 0.25em;
+	padding: 0.55em 0;
+	border-bottom: 1px solid var(--htp-border);
+}
+.htp-scales__chord:last-child { border-bottom: none; }
+.htp-scales__chordlabel {
+	display: flex;
+	align-items: baseline;
+	gap: 0.45em;
+	line-height: 1.2;
+}
+.htp-scales__numeral { font-weight: 700; color: var(--htp-muted); font-size: 13px; }
+.htp-scales__chord.is-inprog .htp-scales__numeral { color: var(--htp-accent); }
+.htp-scales__chordname { font-size: 13px; color: var(--htp-ink); }
+
+/* A chord diagram is a seven-key slice of the real keyboard, so it inherits the
+   drawer's key shapes and tints. Only the SIZE is overridden here — .htp-keys
+   is normally as tall as the drawer. */
+.htp-scales__mini {
+	display: block;
+	flex: 0 0 auto;
+	position: relative;
+	width: 132px;
+	height: 56px;
+	margin: 0;
+}
+.htp-scales__mini .htp-key { cursor: default; }
+.htp-scales__mini .htp-key--white { border-width: 1px; border-color: #999; border-radius: 0 0 2px 2px; }
+.htp-scales__mini .htp-key--black { border-radius: 0 0 2px 2px; }
+
+.htp-scales__chord.is-playing { background: var(--htp-accent-soft); border-radius: 3px; }
+.htp-scales__chord.is-playing .htp-scales__chordname { font-weight: 700; }
+
+.htp-scales__chordnote { color: var(--htp-muted); font-size: 12px; }
+.htp-scales__chordnote--none { color: var(--htp-muted); }
+
+/* The panel is ~170px and the staves want ~430px, so they sit side by side
+   comfortably down to about 640px. Below that, stack. */
+@media (max-width: 680px) {
+	.htp-scales__body { flex-direction: column; }
+	.htp-scales__chords { flex: 1 1 auto; border-left: none; padding-left: 0;
+		border-top: 1px solid var(--htp-border); padding-top: 0.8em; }
+}
+.htp-scales__staves { margin: 0 auto; width: 100%; }
+/* No scrolling and no clef changes here, so the clef's opaque band has nothing
+   to mask — and with it left on it paints over whatever sits beside the staff.
+   Same reason free practice turns it off. */
+.htp-scales div.staff div.symbol.clef { background: transparent; }
+
+/* A scale note is a reference, not a question: grey until you play it.
+
+   The symbol is sized to the NOTEHEAD, not to the glyph. css/styles.css
+   right-aligns every glyph inside its symbol so the heads of a chord stack in
+   one column, and a glyph carrying an accidental is much wider than its head —
+   so in a wide symbol the head ends up hard right while the ledger line, which
+   spans the symbol, sits to its left. Measured, the head was 49px right of the
+   ledger's centre.
+
+   Sizing the symbol to the head and nudging the glyph right by half the
+   remainder puts the head in the middle, which is where the ledger already is.
+   The accidental simply overhangs to the left, which is where it belongs.
+   The ledger keeps styles.css's own left:0/right:0 — giving that SVG an explicit
+   width rescales the whole artwork under the default preserveAspectRatio. */
+div.staff div.symbol.note.htp-scale-note {
+	right: auto;
+	width: 0.44em;
+	margin-left: -0.22em;
+}
+div.staff div.symbol.note.htp-scale-note svg:not(.line) { right: 0.085em; }
+/* Centre the ledger on the notehead.
+
+   The offset is set from JS, per note, by measuring the painted stroke against
+   the painted notehead — see alignLedgers() in js/modules/scales.js. A constant
+   cannot do it: a glyph carrying an accidental puts its head in a different
+   place within the SVG than a bare one, so one offset fixes the naturals and
+   leaves every sharp and flat 19px out. `right: auto` because an element with
+   an explicit width and both offsets set is over-constrained, and `right` is
+   the one the browser drops. */
+div.staff div.symbol.note.htp-scale-note svg.line { right: auto; }
+.htp-scale-note svg path { fill: #9aa0a8; }
+.htp-scale-note svg .htp-stem { fill: #9aa0a8; }
+/* Bright blue, the same hue the key is hinted with, so the staff and the
+   keyboard agree about what you are playing. */
+.htp-scale-note.is-sounding svg path { fill: #0d8ecf; }
+.htp-scale-note.is-sounding svg .htp-stem { fill: #0d8ecf; }
+
+/* The fingering row: a sibling of the staff, exactly as wide as it, so a number
+   can be put under its note by the same percentage the note was placed by.
+   An explicit font-size is needed because .staffsContainer sets the staff size
+   on this subtree and everything here would otherwise be 75px tall. */
+.htp-scales__fingers {
+	position: relative;
+	height: 16px;
+	font-size: 12px;
+	margin-top: 2px;
+}
+.htp-scales__finger {
+	position: absolute;
+	transform: translateX(-50%);
+	font-weight: 700;
+	color: var(--htp-muted);
+	line-height: 1;
+}
+.htp-scales__finger.is-sounding { color: #0d8ecf; }
+
+
+/* ------------------------------------------------- keyboard fingering hints */
+
+/* A faint blue wash, deliberately weaker than the pressed-key tint.
+
+   A hint says "this key is in the scale"; the pressed tint says "you are holding
+   it down". Those have to be told apart at a glance, and the first version could
+   not be: the hint was #d9f0fb against a pressed #d6e6fb — the same colour to
+   any eye. The wash is now pale enough that the pressed tint reads as a step
+   darker on top of it, rather than a change of hue at the same weight.
+
+   The finger numbers keep their strength: they are the information, and the
+   tint is only there to group them. */
+.htp-key.is-hinted { --htp-key-hint: #0d8ecf; }
+.htp-key--white.is-hinted { background: #f0f9fe; }
+.htp-key--black.is-hinted { background: #24566e; }
+/* Pressed beats hinted, in both directions, whichever class was written last. */
+.htp-key--white.is-hinted.is-active { background: var(--htp-accent-soft); }
+.htp-key--black.is-hinted.is-active { background: var(--htp-accent); }
+
+.htp-key__hint {
+	position: absolute;
+	left: 0;
+	right: 0;
+	bottom: 16px;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 1px;
+	pointer-events: none;
+	z-index: 2;
+}
+.htp-key--black .htp-key__hint { bottom: 4px; }
+
+.htp-key__finger {
+	font-size: 10px;
+	line-height: 1.1;
+	font-weight: 700;
+	width: 1.35em;
+	text-align: center;
+	border-radius: 2px;
+}
+/* The thumb, bigger than the rest. Every 1 in a scale fingering marks a
+   crossing, so these are the marks you navigate by. */
+.htp-key__finger.is-thumb {
+	font-size: 14px;
+	width: 1.25em;
+	border-radius: 3px;
+}
+/* Right hand above left, as they sit on the instrument. */
+.htp-key__finger--rh { color: #fff; background: var(--htp-key-hint); }
+.htp-key__finger--lh { color: var(--htp-key-hint); background: #fff; border: 1px solid var(--htp-key-hint); }
+.htp-key--black .htp-key__finger--lh { background: #eaf6fd; }
+
+@media (max-width: 720px) {
+	.htp-scales { padding: 0.6em 0.7em 0; }
+	.htp-scales__hint { display: none; }
+	.htp-key__finger { font-size: 9px; }
+}

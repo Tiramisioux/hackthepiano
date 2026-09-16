@@ -45,6 +45,16 @@
 	};
 
 	var keyElements = {};          /* midi note -> element           */
+	/* A scale, chord or exercise a module wants shown ON the keys:
+	 *   {midiNote: {rh: finger, lh: finger}}
+	 * Kept here rather than written into the DOM by the module, because the keys
+	 * are rebuilt from scratch on every range and octave change — anything drawn
+	 * from outside would silently vanish the first time you moved the keyboard. */
+	var keyHints = null;
+	/* Told when the visible span changes, so a module drawing something ONTO the
+	 * keys can re-place it — the scales tab puts its two hands in the outermost
+	 * octaves of whatever is on screen. */
+	var rangeListeners = [];
 	var activeNotes = {};          /* midi note -> refcount          */
 	/* pointerId -> the note that pointer is currently holding. A map rather than
 	 * a single value because a touchscreen has as many pointers as fingers, and
@@ -149,9 +159,14 @@
 		writeStored(STORAGE_RANGE, rangeIndex);
 		buildKeys();
 		applyKeyColours();
+		applyKeyHints();
 		clampBaseNote();
 		updateRangeLabel();
 		updateOctaveLabel();
+		rangeListeners.slice().forEach(function (fn) {
+			try { fn(RANGES[rangeIndex]); }
+			catch (e) { console.error('[HTP] keyboard range listener failed', e); }
+		});
 	}
 
 	/* Tint the C, F and G keys to match the staff line markers. */
@@ -172,6 +187,43 @@
 			 * highlights in its own hue instead of the generic blue. */
 			el.style.setProperty('--htp-key-tint-soft', window.HTP.shade(landmark.colour, 0.55));
 			el.classList.add('is-landmark');
+		});
+	}
+
+	/*
+	 * Draw the current hint set onto the keys: a tint, and the fingering for
+	 * whichever hand plays that note. A key used by both hands — the note where
+	 * the two octaves meet — carries both numbers, right hand above left, which
+	 * is how they sit on the instrument.
+	 */
+	function finger(number, hand) {
+		var el = document.createElement('b');
+		el.className = 'htp-key__finger htp-key__finger--' + hand
+			+ (number === 1 ? ' is-thumb' : '');
+		el.textContent = number;
+		return el;
+	}
+
+	function applyKeyHints() {
+		Object.keys(keyElements).forEach(function (key) {
+			var el = keyElements[key];
+			var existing = el.querySelector('.htp-key__hint');
+			if (existing) el.removeChild(existing);
+			el.classList.remove('is-hinted');
+
+			var hint = keyHints && keyHints[key];
+			if (!hint) return;
+
+			el.classList.add('is-hinted');
+			var box = document.createElement('span');
+			box.className = 'htp-key__hint';
+			/* The thumb is drawn larger than the other fingers. In scale playing it
+			 * is the one that matters: every thumb mark is a place the hand has to
+			 * pass over or under, so being able to pick them out at a glance is
+			 * the difference between reading fingering and using it. */
+			if (hint.rh) box.appendChild(finger(hint.rh, 'rh'));
+			if (hint.lh) box.appendChild(finger(hint.lh, 'lh'));
+			el.appendChild(box);
 		});
 	}
 
@@ -453,6 +505,7 @@
 			 * are drawn, on the keys and on the staff alike. */
 			if (key === 'keyNames' || key.indexOf('landmark') === 0) {
 				buildKeys();          /* labels are baked in at build time */
+				applyKeyHints();
 			}
 			if (key === 'colourKeys' || key === 'keyNames' || key.indexOf('landmark') === 0)
 				applyKeyColours();
@@ -476,6 +529,19 @@
 		ranges: RANGES,
 		setRange: setRange,
 		range: function () { return rangeIndex; },
-		setBaseNote: function (n) { baseNote = n; clampBaseNote(); updateOctaveLabel(); }
+		setBaseNote: function (n) { baseNote = n; clampBaseNote(); updateOctaveLabel(); },
+		/*
+		 * Show a scale, chord or exercise on the keys.
+		 *   HTP.keyboard.setHints({60: {rh: 1}, 48: {lh: 5}})
+		 * Pass null to clear. Survives range and octave changes.
+		 */
+		setHints: function (map) { keyHints = map || null; applyKeyHints(); },
+		clearHints: function () { keyHints = null; applyKeyHints(); },
+		/* The lowest and highest note currently drawn, so a caller can tell
+		 * whether what it is hinting is actually on screen. */
+		visibleRange: function () {
+			return { low: RANGES[rangeIndex].low, high: RANGES[rangeIndex].high };
+		},
+		onRangeChange: function (fn) { rangeListeners.push(fn); }
 	};
 })(window, document);
