@@ -1883,13 +1883,42 @@ $(function(){
 	/* Pick how to spell a pitch: follow the key signature where possible, but
 	 * skip entries getName() has no name for — the note table carries enharmonic
 	 * spellings such as F-as-Eis and B-as-Ces that it never names. */
-	var spellingForSound = function(sound){
-		var preferred = state.activeKey ? state.activeKey.decorator : decorators.sharp;
+	/*
+	 * `preference` lets a caller ask for a spelling rather than inheriting the
+	 * trainer's active key signature. A module drawing a scale needs this: the
+	 * sixth degree of E-flat major is C, and its third is G, but its root has to
+	 * be E-flat and never D-sharp — the trainer's key has nothing to do with it.
+	 * Omitted, the behaviour is exactly as before.
+	 */
+	var spellingForSound = function(sound, preference){
+		var preferred = preference
+			|| (state.activeKey ? state.activeKey.decorator : decorators.sharp);
 		var candidates = notes.filter(function(n){ return n.sound == sound; });
 		if (!candidates.length)
 			return null;
-		return candidates.filter(function(n){ return n.decorator == preferred && n.name; })[0]
-			|| candidates.filter(function(n){ return n.name; })[0]
+		
+		var named = candidates.filter(function(n){ return n.decorator == preferred && n.name; })[0];
+		if (named)
+			return named;
+		
+		/*
+		 * An explicit preference asks for a STAFF POSITION, not a word. C-flat
+		 * and E-sharp are in the table with the right position, but getName() has
+		 * no spelling for either, so the named filter above throws them away —
+		 * which silently turned G-flat major's fourth degree into a second B,
+		 * two noteheads on one line and a letter skipped.
+		 *
+		 * Only an explicit preference gets this: the readout still needs a name
+		 * to print, and its path is unchanged.
+		 */
+		if (preference)
+		{
+			var asked = candidates.filter(function(n){ return n.decorator == preference; })[0];
+			if (asked)
+				return asked;
+		}
+		
+		return candidates.filter(function(n){ return n.name; })[0]
 			|| candidates[0];
 	};
 	/*
@@ -2122,8 +2151,8 @@ $(function(){
 		
 		return {above: above, below: below};
 	};
-	var buildNoteGlyph = function(clefId, sound){
-		var entry = spellingForSound(sound);
+	var buildNoteGlyph = function(clefId, sound, preference){
+		var entry = spellingForSound(sound, preference);
 		if (!entry || !clefs[clefId])
 			return null;
 		
@@ -2389,6 +2418,8 @@ $(function(){
 				return (clefs[lowerClefId].shift - clefs[upperClefId].shift) * grid.stepEm - 2;
 			},
 			buildNoteGlyph: buildNoteGlyph,
+			/* Spelling preferences a caller may pass to buildNoteGlyph. */
+			decorators: decorators,
 			roomForShiftsEm: roomForShiftsEm,
 			/* Give a set of noteheads one shared stem direction. Hand it every
 			 * head of a chord at once; a lone note can stem itself. */
