@@ -743,6 +743,23 @@
 		return (stored >= 0 && stored < list.length) ? stored : 0;
 	}
 
+	function chordCard(chord, inProg, step) {
+		var described = notation().describeSounds(chord.sounds.slice(), chord.sounds[0]);
+		var pcs = chord.sounds.map(function (n) { return (((n % 12) + 12) % 12); })
+			.filter(function (v, k, a) { return a.indexOf(v) === k; })
+			.sort(function (a, b) { return a - b; });
+		return '<li class="htp-scales__chord' + (inProg ? ' is-inprog' : '') + '"'
+			+ ' data-pcs="' + pcs.join(',') + '">'
+			+ (step ? '<span class="htp-scales__step">' + step + '</span>' : '')
+			+ miniKeyboard(chord.sounds)
+			+ '<span class="htp-scales__chordlabel">'
+			+   '<b class="htp-scales__numeral">' + chord.numeral + '</b>'
+			+   '<span class="htp-scales__chordname">'
+			+     (described.secondary || described.primary) + '</span>'
+			+ '</span>'
+			+ '</li>';
+	}
+
 	function renderChords(group, scale) {
 		var panel = root.querySelector('.htp-scales__chords');
 		if (!panel) return;
@@ -773,24 +790,36 @@
 				html += '<div class="htp-scales__prognote">' + prog.note + '</div>';
 		}
 
+		/*
+		 * With a progression chosen, the panel IS the progression: its chords in
+		 * order, repeats included, numbered. Showing the distinct chords instead
+		 * silently collapsed I7 - IV7 - I7 - V7 into three cards, which is not
+		 * the thing you are trying to play.
+		 *
+		 * Whatever the progression does not use follows underneath, so the scale's
+		 * other chords are still there to find.
+		 */
+		var byDegree = {};
+		chords.forEach(function (c) { byDegree[c.degree] = c; });
+
+		var sequence = prog
+			? prog.degrees.map(function (d) { return byDegree[d]; }).filter(Boolean)
+			: [];
+		var used = {};
+		sequence.forEach(function (c) { used[c.degree] = true; });
+		var rest = chords.filter(function (c) { return !used[c.degree]; });
+
 		html += '<ul class="htp-scales__chordlist">';
-		chords.forEach(function (chord) {
-			var inProg = prog && prog.degrees.indexOf(chord.degree) !== -1;
-			var described = notation().describeSounds(chord.sounds.slice(), chord.sounds[0]);
-			var pcs = chord.sounds.map(function (n) { return (((n % 12) + 12) % 12); })
-				.filter(function (v, k, a) { return a.indexOf(v) === k; })
-				.sort(function (a, b) { return a - b; });
-			html += '<li class="htp-scales__chord' + (inProg ? ' is-inprog' : '') + '"'
-				+ ' data-pcs="' + pcs.join(',') + '">'
-				+ miniKeyboard(chord.sounds)
-				+ '<span class="htp-scales__chordlabel">'
-				+   '<b class="htp-scales__numeral">' + chord.numeral + '</b>'
-				+   '<span class="htp-scales__chordname">'
-				+     (described.secondary || described.primary) + '</span>'
-				+ '</span>'
-				+ '</li>';
+		sequence.forEach(function (chord, i) {
+			html += chordCard(chord, true, i + 1);
 		});
+		if (sequence.length && rest.length)
+			html += '<li class="htp-scales__rest">also in this scale</li>';
+		rest.forEach(function (chord) { html += chordCard(chord, false, null); });
+		if (!sequence.length)
+			chords.forEach(function (chord) { html += chordCard(chord, false, null); });
 		html += '</ul>';
+
 		panel.innerHTML = html;
 
 		var picker = panel.querySelector('.htp-scales__progpick');

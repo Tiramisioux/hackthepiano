@@ -1083,6 +1083,29 @@ body.htp-pp-nolabels .htp-key__label { visibility: hidden; }
 .htp-scales__chord:not(.is-inprog) .htp-scales__chordname { color: var(--htp-muted); }
 .htp-scales__chordname { font-size: 13px; color: var(--htp-ink); }
 
+/* Step number, so a repeated chord reads as two places in the progression
+   rather than one card drawn twice. */
+.htp-scales__chord { position: relative; }
+.htp-scales__step {
+	position: absolute;
+	top: 0.45em;
+	left: 0;
+	font-size: 11px;
+	font-weight: 700;
+	color: var(--htp-accent);
+	opacity: 0.55;
+}
+.htp-scales__rest {
+	list-style: none;
+	font-size: 11px;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	color: var(--htp-muted);
+	padding: 0.9em 0 0.2em;
+	border-top: 1px solid var(--htp-border);
+	margin-top: 0.4em;
+}
+
 /* A chord diagram is a seven-key slice of the real keyboard, so it inherits the
    drawer's key shapes and tints. Only the SIZE is overridden here — .htp-keys
    is normally as tall as the drawer. */
