@@ -1085,7 +1085,9 @@ body.htp-pp-nolabels .htp-key__label { visibility: hidden; }
 
 /* Step number, so a repeated chord reads as two places in the progression
    rather than one card drawn twice. */
-.htp-scales__chord { position: relative; }
+.htp-scales__chord { position: relative; cursor: pointer; border-radius: 4px; }
+.htp-scales__chord:hover { background: #f4f8fc; }
+.htp-scales__chord:focus-visible { outline: 2px solid var(--htp-accent); outline-offset: 1px; }
 .htp-scales__step {
 	position: absolute;
 	top: 0.45em;
@@ -1118,6 +1120,15 @@ body.htp-pp-nolabels .htp-key__label { visibility: hidden; }
 	margin: 0;
 }
 .htp-scales__mini .htp-key { cursor: default; }
+/* A note you are holding, shown on every chord that contains it.
+
+   Darker than the drawer's own pressed tint on purpose. Down there a key is
+   large and the pale wash reads fine; here it is a few pixels wide and sitting
+   on the pale hint already, so the same colour would be no change at all. */
+.htp-scales__mini .htp-key--white.is-hinted.is-active,
+.htp-scales__mini .htp-key--white.is-active { background: #6fb9e6; }
+.htp-scales__mini .htp-key--black.is-hinted.is-active,
+.htp-scales__mini .htp-key--black.is-active { background: #15679c; }
 .htp-scales__mini .htp-key--white { border-width: 1px; border-color: #999; border-radius: 0 0 2px 2px; }
 .htp-scales__mini .htp-key--black { border-radius: 0 0 2px 2px; }
 
