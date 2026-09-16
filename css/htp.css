@@ -1318,6 +1318,20 @@ div.staff div.symbol.note.htp-scale-note svg.line { right: auto; }
 	background: #fafafa;
 	touch-action: none;
 }
+/* The "Fn" caption, kept in the markup but not shown — the twelve keys read
+   clearly enough without it. Delete this one declaration to bring it back; the
+   rest of the rule is the styling it would need. */
+.htp-fnkeys__label {
+	display: none;
+	align-self: center;
+	font-size: 10px;
+	letter-spacing: 0.1em;
+	text-transform: uppercase;
+	color: var(--htp-muted);
+	padding-right: 0.4em;
+	flex: 0 0 auto;
+}
+
 .htp-fnkey {
 	position: static;          /* not laid out like a piano key */
 	flex: 1 1 0;

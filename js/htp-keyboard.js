@@ -307,6 +307,13 @@
 		fnKeysEl = document.createElement('div');
 		fnKeysEl.className = 'htp-fnkeys';
 		fnKeysEl.title = 'Function keys — hold one to name a key, then play a chord';
+		/* Kept, but hidden by css/htp.css. The twelve keys read clearly enough
+		 * without it; the label is here so it can be brought back by deleting one
+		 * `display: none` rather than rebuilding the element. */
+		var fnLabel = document.createElement('span');
+		fnLabel.className = 'htp-fnkeys__label';
+		fnLabel.textContent = 'Fn';
+		fnKeysEl.appendChild(fnLabel);
 		for (var fnNote = FN_LOW; fnNote <= FN_HIGH; fnNote++) {
 			var fnKeyEl = document.createElement('button');
 			fnKeyEl.type = 'button';
