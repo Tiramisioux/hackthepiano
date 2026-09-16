@@ -42,9 +42,65 @@ window.HTP = (function (window, document) {
 	var busSubscribers = [];
 	var portSubscribers = [];
 
+	/*
+	 * The function key.
+	 *
+	 * A piano has no modifier keys, so one key is borrowed as one: the bottom A0,
+	 * the far left of an 88-key board, which is not a note anybody plays by
+	 * accident. Hold it and whatever you play next is read as a command rather
+	 * than as music — a single note, or a chord — and delivered to whoever asked
+	 * when you let go.
+	 *
+	 * Deliberately a framework rather than a feature. Any module can ask for
+	 * commands; the scales tab is simply the first to. The note it listens on is
+	 * configurable, because not every keyboard has 88 keys.
+	 *
+	 * Events still go out on the bus untouched, so the keys light and nothing
+	 * downstream has to know this exists. A module that DOES care asks
+	 * fnKey.isDown() and ignores the notes it would otherwise act on.
+	 */
+	var fnKey = {
+		note: 21,               /* A0 — the bottom key of an 88-key piano */
+		down: false,
+		captured: [],
+		listeners: []
+	};
+
+	function trackFunctionKey(bytes) {
+		var type = bytes[0] & 0xf0;
+		var note = bytes[1];
+		var isOn = (type === 0x90 && bytes[2] > 0);
+		var isOff = (type === 0x80 || (type === 0x90 && bytes[2] === 0));
+		if (!isOn && !isOff) return;
+
+		if (note === fnKey.note) {
+			if (isOn) {
+				fnKey.down = true;
+				fnKey.captured = [];
+			} else if (fnKey.down) {
+				fnKey.down = false;
+				var command = fnKey.captured.slice();
+				fnKey.captured = [];
+				if (command.length)
+					fnKey.listeners.slice().forEach(function (fn) {
+						try { fn(command); }
+						catch (e) { console.error('[HTP] function-key listener failed', e); }
+					});
+			}
+			return;
+		}
+
+		/* Everything struck while it is held is part of the command, whether or
+		 * not it is still down when the key is released — that is what lets a
+		 * chord be rolled rather than struck exactly together. */
+		if (fnKey.down && isOn && fnKey.captured.indexOf(note) === -1)
+			fnKey.captured.push(note);
+	}
+
 	/* Publish a raw MIDI byte array on the bus. `source` is 'virtual' for the
 	 * on-screen keyboard and 'hardware' for a real input port. */
 	function publish(bytes, source) {
+		trackFunctionKey(bytes);
 		busSubscribers.slice().forEach(function (fn) {
 			try { fn(bytes, source); }
 			catch (e) { console.error('[HTP] midi bus subscriber failed', e); }
@@ -488,6 +544,18 @@ window.HTP = (function (window, document) {
 				};
 			}
 			return null;
+		},
+		/*
+		 * The function key — one piano key borrowed as a modifier.
+		 *   HTP.fnKey.onCommand(function (sounds) { ... });   // fired on release
+		 *   HTP.fnKey.isDown();                               // ignore notes if true
+		 *   HTP.fnKey.setNote(36);                            // for shorter keyboards
+		 */
+		fnKey: {
+			isDown: function () { return fnKey.down; },
+			note: function () { return fnKey.note; },
+			setNote: function (n) { fnKey.note = n; },
+			onCommand: function (fn) { fnKey.listeners.push(fn); }
 		},
 		setSetting: setSetting,
 		onSettingChange: function (fn) { settingListeners.push(fn); },
