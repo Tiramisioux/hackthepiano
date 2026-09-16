@@ -297,9 +297,18 @@ div.shareContainer { position: static; }
 	text-overflow: ellipsis;
 }
 
-.htp-keyboard__body {
+/* The keys scroll, the function strip does not — it is a control, and a control
+   that slides off the side when you scroll to another octave is no use. */
+.htp-keyboard__scroller {
 	overflow-x: auto;
 	overflow-y: hidden;
+	flex: 1 1 auto;
+	min-height: 0;
+}
+.htp-keyboard__body {
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
 	height: var(--htp-keyboard-height);
 	transition: height 0.18s ease;
 }
