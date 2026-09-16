@@ -1034,24 +1034,30 @@ body.htp-pp-nolabels .htp-key__label { visibility: hidden; }
 }
 
 .htp-scales__chords {
-	flex: 0 0 152px;
+	flex: 0 0 196px;
 	border-left: 1px solid var(--htp-border);
 	padding-left: 1.1em;
 	font-size: 13px;
 }
-.htp-scales__chords h3 {
-	font-size: 12px;
-	letter-spacing: 0.09em;
-	text-transform: uppercase;
-	color: var(--htp-muted);
-	margin: 0 0 0.2em;
-	font-weight: 600;
-}
-.htp-scales__prog {
+/* The progression picker stands in for a heading: it names what is highlighted
+   and lets you change it, which a heading could not. */
+.htp-scales__progpick {
+	width: 100%;
+	font-size: 14px;
 	font-weight: 700;
 	color: var(--htp-accent);
-	margin-bottom: 0.7em;
-	font-size: 14px;
+	background: #fff;
+	border: 1px solid var(--htp-border);
+	border-radius: 4px;
+	padding: 0.3em 0.4em;
+	margin-bottom: 0.3em;
+	cursor: pointer;
+}
+.htp-scales__progpick:hover { border-color: var(--htp-accent); }
+.htp-scales__prognote {
+	font-size: 12px;
+	color: var(--htp-muted);
+	margin-bottom: 0.6em;
 }
 .htp-scales__chordlist { list-style: none; margin: 0; padding: 0; }
 /* Diagram above, name under it — the keyboard is the thing being read, so it
@@ -1071,8 +1077,10 @@ body.htp-pp-nolabels .htp-key__label { visibility: hidden; }
 	gap: 0.45em;
 	line-height: 1.2;
 }
-.htp-scales__numeral { font-weight: 700; color: var(--htp-muted); font-size: 13px; }
-.htp-scales__chord.is-inprog .htp-scales__numeral { color: var(--htp-accent); }
+.htp-scales__numeral { font-weight: 700; color: var(--htp-accent); font-size: 14px; }
+/* Chords outside the chosen progression stay legible but recede. */
+.htp-scales__chord:not(.is-inprog) .htp-scales__numeral { opacity: 0.45; }
+.htp-scales__chord:not(.is-inprog) .htp-scales__chordname { color: var(--htp-muted); }
 .htp-scales__chordname { font-size: 13px; color: var(--htp-ink); }
 
 /* A chord diagram is a seven-key slice of the real keyboard, so it inherits the
@@ -1082,8 +1090,8 @@ body.htp-pp-nolabels .htp-key__label { visibility: hidden; }
 	display: block;
 	flex: 0 0 auto;
 	position: relative;
-	width: 132px;
-	height: 56px;
+	width: 174px;
+	height: 74px;
 	margin: 0;
 }
 .htp-scales__mini .htp-key { cursor: default; }
@@ -1096,9 +1104,9 @@ body.htp-pp-nolabels .htp-key__label { visibility: hidden; }
 .htp-scales__chordnote { color: var(--htp-muted); font-size: 12px; }
 .htp-scales__chordnote--none { color: var(--htp-muted); }
 
-/* The panel is ~170px and the staves want ~430px, so they sit side by side
-   comfortably down to about 640px. Below that, stack. */
-@media (max-width: 680px) {
+/* The panel is ~196px and the staves read fine down to ~420px, so the two sit
+   side by side to about 620px. Below that, stack. */
+@media (max-width: 620px) {
 	.htp-scales__body { flex-direction: column; }
 	.htp-scales__chords { flex: 1 1 auto; border-left: none; padding-left: 0;
 		border-top: 1px solid var(--htp-border); padding-top: 0.8em; }

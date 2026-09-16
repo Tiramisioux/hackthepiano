@@ -42,9 +42,16 @@
 	 * right, so only degrees that genuinely need an accidental get one. */
 	var SPELLINGS = ['natural', 'sharp', 'flat'];
 
+	/*
+	 * All seven modes are here, but two of them answer to older names: Ionian IS
+	 * the major scale and Aeolian IS the natural minor — same notes, same
+	 * fingering, same everything. They are labelled with both so the modal set
+	 * reads as complete rather than looking two short, and so nobody goes looking
+	 * for an Ionian group that would only duplicate Major.
+	 */
 	var GROUPS = [
 		{
-			id: 'major', name: 'Major',
+			id: 'major', name: 'Major (Ionian)',
 			steps: [0, 2, 4, 5, 7, 9, 11, 12], letters: [0, 1, 2, 3, 4, 5, 6, 7],
 			scales: [
 				{ name: 'C major',  pc: 0,  letter: L.C, rh: [1,2,3,1,2,3,4,5], lh: [5,4,3,2,1,3,2,1] },
@@ -62,7 +69,7 @@
 			]
 		},
 		{
-			id: 'minor', name: 'Natural minor',
+			id: 'minor', name: 'Natural minor (Aeolian)',
 			steps: [0, 2, 3, 5, 7, 8, 10, 12], letters: [0, 1, 2, 3, 4, 5, 6, 7],
 			scales: [
 				{ name: 'A minor',  pc: 9,  letter: L.A, rh: [1,2,3,1,2,3,4,5], lh: [5,4,3,2,1,3,2,1] },
@@ -231,31 +238,48 @@
 	var STORAGE_CHORDS = 'htp.scales.chords';
 
 	/*
-	 * The progression a scale is usually MET in, by group. Only where there is a
-	 * real convention: ii–V–I is what a Dorian or Mixolydian scale exists to play
-	 * over, I–IV–V is the shape of a blues, and a major or minor key is normally
-	 * introduced through its own I–IV–V. Nothing is invented for the modes that
-	 * have no such standard — an empty entry just shows the scale's own chords.
+	 * Progressions per group, most common first.
 	 *
-	 * Degrees are 1-based positions in the scale, so they follow whatever root is
-	 * chosen without any further arithmetic.
+	 * Degrees are 1-based positions in the SCALE, so they follow whatever root is
+	 * chosen without further arithmetic — and a progression is therefore just a
+	 * list of degrees plus a name, which is the same thing a chord exercise would
+	 * need to ask you to play one.
+	 *
+	 * A mode's degrees are counted in the mode, which is easy to get wrong: in D
+	 * Dorian the ii-V-I of C major is D, G and C — degrees 1, 4 and 7 of the
+	 * Dorian scale, not 1, 5 and 7. Likewise G Mixolydian's is degrees 5, 1, 4.
 	 */
 	var PROGRESSIONS = {
-		major:      { label: 'I – IV – V',     degrees: [1, 4, 5] },
-		minor:      { label: 'i – iv – v',     degrees: [1, 4, 5] },
-		dorian:     { label: 'ii – V – I',     degrees: [1, 5, 7], note: 'Dorian is the ii' },
-		mixolydian: { label: 'ii – V – I',     degrees: [2, 1, 4], note: 'Mixolydian is the V' },
-		phrygian:   { label: '', degrees: [] },
-		lydian:     { label: '', degrees: [] },
-		locrian:    { label: '', degrees: [] }
+		major: [
+			{ label: 'I – IV – V',        degrees: [1, 4, 5] },
+			{ label: 'I – V – vi – IV',   degrees: [1, 5, 6, 4] },
+			{ label: 'ii – V – I',        degrees: [2, 5, 1] },
+			{ label: 'I – vi – IV – V',   degrees: [1, 6, 4, 5] },
+			{ label: 'vi – IV – I – V',   degrees: [6, 4, 1, 5] }
+		],
+		minor: [
+			{ label: 'i – iv – v',          degrees: [1, 4, 5] },
+			{ label: 'i – VI – III – VII',  degrees: [1, 6, 3, 7] },
+			{ label: 'i – iv – VII',        degrees: [1, 4, 7] },
+			{ label: 'ii° – v – i',         degrees: [2, 5, 1] }
+		],
+		blues: [
+			{ label: 'I7 – IV7 – V7',        degrees: [1, 2, 3] },
+			{ label: 'I7 – IV7 – I7 – V7',   degrees: [1, 2, 1, 3] }
+		],
+		dorian:     [{ label: 'ii – V – I', degrees: [1, 4, 7], note: 'Dorian is the ii' }],
+		mixolydian: [{ label: 'ii – V – I', degrees: [5, 1, 4], note: 'Mixolydian is the V' }],
+		lydian:     [{ label: 'I – II',     degrees: [1, 2], note: 'the raised fourth is the colour' }],
+		phrygian:   [{ label: 'i – ♭II',    degrees: [1, 2], note: 'the flat second is the colour' }],
+		locrian:    []
 	};
 
 	/* A blues is played on dominant sevenths built off the key, not on triads
 	 * stacked out of its own six notes — the scale has no third to stack. */
 	var BLUES_CHORDS = [
-		{ numeral: 'I7',  offset: 0, intervals: [0, 4, 7, 10] },
-		{ numeral: 'IV7', offset: 5, intervals: [0, 4, 7, 10] },
-		{ numeral: 'V7',  offset: 7, intervals: [0, 4, 7, 10] }
+		{ numeral: 'I7',  degree: 1, offset: 0, intervals: [0, 4, 7, 10] },
+		{ numeral: 'IV7', degree: 2, offset: 5, intervals: [0, 4, 7, 10] },
+		{ numeral: 'V7',  degree: 3, offset: 7, intervals: [0, 4, 7, 10] }
 	];
 
 	var PC_OF_LETTER = [0, 2, 4, 5, 7, 9, 11];
@@ -643,7 +667,7 @@
 	function chordsOf(group, scale) {
 		if (group.id === 'blues')
 			return BLUES_CHORDS.map(function (c) {
-				return { numeral: c.numeral,
+				return { numeral: c.numeral, degree: c.degree,
 					sounds: c.intervals.map(function (iv) { return 60 + scale.pc + c.offset + iv; }) };
 			});
 
@@ -711,6 +735,14 @@
 		return html + '</span>';
 	}
 
+	/* Which progression is showing, per group — each group's list is its own. */
+	function chosenProgression(group) {
+		var list = PROGRESSIONS[group.id] || [];
+		if (!list.length) return -1;
+		var stored = parseInt(window.localStorage.getItem('htp.scales.prog.' + group.id), 10);
+		return (stored >= 0 && stored < list.length) ? stored : 0;
+	}
+
 	function renderChords(group, scale) {
 		var panel = root.querySelector('.htp-scales__chords');
 		if (!panel) return;
@@ -718,20 +750,28 @@
 		if (!chordsOn()) return;
 
 		var chords = chordsOf(group, scale);
-		var prog = PROGRESSIONS[group.id];
-		var html = '<h3>Chords in this scale</h3>';
-
 		if (!chords) {
-			panel.innerHTML = html + '<div class="htp-scales__chordnote--none">'
+			panel.innerHTML = '<div class="htp-scales__chordnote--none">'
 				+ 'A five-note scale has no triads of its own — its chords come from the '
 				+ 'major or minor key it sits inside.</div>';
 			return;
 		}
 
-		if (prog && prog.label)
-			html += '<div class="htp-scales__prog">' + prog.label
-				+ (prog.note ? ' <span class="htp-scales__chordnote">(' + prog.note + ')</span>' : '')
-				+ '</div>';
+		var list = PROGRESSIONS[group.id] || [];
+		var chosen = chosenProgression(group);
+		var prog = chosen >= 0 ? list[chosen] : null;
+		var html = '';
+
+		if (list.length) {
+			html += '<select class="htp-scales__progpick" title="Common progressions in this scale, most common first">';
+			list.forEach(function (entry, i) {
+				html += '<option value="' + i + '"' + (i === chosen ? ' selected' : '') + '>'
+					+ entry.label + '</option>';
+			});
+			html += '</select>';
+			if (prog && prog.note)
+				html += '<div class="htp-scales__prognote">' + prog.note + '</div>';
+		}
 
 		html += '<ul class="htp-scales__chordlist">';
 		chords.forEach(function (chord) {
@@ -752,6 +792,15 @@
 		});
 		html += '</ul>';
 		panel.innerHTML = html;
+
+		var picker = panel.querySelector('.htp-scales__progpick');
+		if (picker) picker.addEventListener('change', function () {
+			try { window.localStorage.setItem('htp.scales.prog.' + group.id, picker.value); }
+			catch (e) { /* non-fatal */ }
+			renderChords(group, scale);
+			applyChordPlaying();
+			picker.blur();
+		});
 	}
 
 	function chordsOn() {
