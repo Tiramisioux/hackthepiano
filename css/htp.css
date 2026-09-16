@@ -1209,6 +1209,24 @@ div.staff div.symbol.note.htp-scale-note svg.line { right: auto; }
 }
 .htp-scales__finger.is-sounding { color: #0d8ecf; }
 
+/* The name of the note you are holding, under it, in its own clef. Same
+   positioning as the fingering row — a sibling of the staff, exactly as wide,
+   so a percentage places a label under the note it belongs to. */
+.htp-scales__names {
+	position: relative;
+	height: 17px;
+	font-size: 13px;
+	margin-top: 1px;
+}
+.htp-scales__notename {
+	position: absolute;
+	transform: translateX(-50%);
+	font-weight: 700;
+	color: #0d8ecf;
+	line-height: 1;
+	white-space: nowrap;
+}
+
 
 /* ------------------------------------------------- keyboard fingering hints */
 
