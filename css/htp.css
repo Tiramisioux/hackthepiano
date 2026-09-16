@@ -1005,7 +1005,9 @@ body.htp-pp-nolabels .htp-key__label { visibility: hidden; }
 .htp-scales__group:hover { border-color: var(--htp-accent); }
 .htp-scales__opt { margin: 0; font-weight: 400; font-size: 13px; display: flex;
 	align-items: center; gap: 0.4em; color: var(--htp-ink); }
-.htp-scales__readout { min-height: 3em; margin: 0 0 0.6em; }
+/* Reserve the tallest state — a name plus its chord is 46px — so naming what
+   you play does not nudge the staves up and down. */
+.htp-scales__readout { min-height: 46px; margin: 0 0 0.6em; }
 
 .htp-scales__notation {
 	flex: 1 1 auto;

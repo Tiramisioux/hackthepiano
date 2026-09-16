@@ -638,9 +638,10 @@
 	function updateReadout() {
 		if (!readoutEl) return;
 		var sounds = Object.keys(held).map(Number).sort(function (a, b) { return a - b; });
+		/* Nothing held: stay empty rather than explaining itself. The space is
+		 * still reserved, so naming a chord does not shift the staves. */
 		if (!sounds.length) {
-			readoutEl.innerHTML = '<div class="htp-readout__secondary">'
-				+ 'Play notes from the scale — two are named as an interval, three or more as a chord.</div>';
+			readoutEl.innerHTML = '';
 			return;
 		}
 		var described = notation().describeSounds(sounds, heldOrder[0]);
