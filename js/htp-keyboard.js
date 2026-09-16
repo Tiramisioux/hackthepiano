@@ -246,6 +246,12 @@
 		});
 	}
 
+	function applyFnLegend() {
+		if (!fnKeysEl) return;
+		var label = fnKeysEl.querySelector('.htp-fnkeys__label');
+		if (label) label.hidden = !window.HTP.settings.showFnLegend;
+	}
+
 	function updateRangeLabel() {
 		if (rangeLabel) rangeLabel.textContent = RANGES[rangeIndex].label;
 	}
@@ -307,9 +313,7 @@
 		fnKeysEl = document.createElement('div');
 		fnKeysEl.className = 'htp-fnkeys';
 		fnKeysEl.title = 'Function keys — hold one to name a key, then play a chord';
-		/* Kept, but hidden by css/htp.css. The twelve keys read clearly enough
-		 * without it; the label is here so it can be brought back by deleting one
-		 * `display: none` rather than rebuilding the element. */
+		/* Shown or hidden by the "Fn legend" option — see applyFnLegend(). */
 		var fnLabel = document.createElement('span');
 		fnLabel.className = 'htp-fnkeys__label';
 		fnLabel.textContent = 'Fn';
@@ -557,7 +561,9 @@
 			else if (type === 0x80) highlight(bytes[1], false);
 		});
 
+		applyFnLegend();
 		window.HTP.onSettingChange(function (key) {
+			if (key === 'showFnLegend') applyFnLegend();
 			/* colourKeys is the master switch; landmarkC/F/G pick which of them
 			 * are drawn, on the keys and on the staff alike. */
 			if (key === 'keyNames' || key.indexOf('landmark') === 0) {

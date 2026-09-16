@@ -1318,11 +1318,12 @@ div.staff div.symbol.note.htp-scale-note svg.line { right: auto; }
 	background: #fafafa;
 	touch-action: none;
 }
-/* The "Fn" caption, kept in the markup but not shown — the twelve keys read
-   clearly enough without it. Delete this one declaration to bring it back; the
-   rest of the rule is the styling it would need. */
+/* The "Fn" caption, shown by the "Fn legend" option.
+
+   No `display` here on purpose: the option works by setting the element's
+   `hidden` attribute, and any display declaration in this rule would outrank
+   the UA sheet's [hidden]{display:none} and leave it permanently on screen. */
 .htp-fnkeys__label {
-	display: none;
 	align-self: center;
 	font-size: 10px;
 	letter-spacing: 0.1em;
