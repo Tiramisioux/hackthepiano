@@ -1230,11 +1230,13 @@ div.staff div.symbol.note.htp-scale-note svg.line { right: auto; }
 .htp-scales__notename {
 	position: absolute;
 	transform: translateX(-50%);
-	font-weight: 700;
-	color: #0d8ecf;
+	font-weight: 600;
+	color: var(--htp-muted);
 	line-height: 1;
 	white-space: nowrap;
 }
+/* The one under your finger. */
+.htp-scales__notename.is-sounding { color: #0d8ecf; font-weight: 700; }
 
 
 /* ------------------------------------------------- keyboard fingering hints */

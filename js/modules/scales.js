@@ -975,6 +975,7 @@
 		hintKeyboard(notes);
 
 		renderChords(pick.group, scale);
+		applyNoteNames();
 		applySounding();
 		applyChordPlaying();
 		updateReadout();
@@ -1026,10 +1027,14 @@
 		var single = sounds.length === 1 ? sounds[0] : null;
 		var placed = false;
 
+		/* Every note is named, always — reading which degrees are flat or sharp is
+		 * half of what a scale reference is for, and it should not require playing
+		 * them one at a time. The one you are holding is picked out. */
 		$('.htp-scales__notename', root).each(function () {
 			var slot = $(this);
 			var mine = single !== null && parseInt(slot.attr('data-sound'), 10) === single;
-			slot.text(mine ? slot.attr('data-name') : '');
+			slot.text(slot.attr('data-name'));
+			slot.toggleClass('is-sounding', mine);
 			if (mine) placed = true;
 		});
 		return placed;
