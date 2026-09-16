@@ -43,25 +43,27 @@ window.HTP = (function (window, document) {
 	var portSubscribers = [];
 
 	/*
-	 * The function key.
+	 * The function keys.
 	 *
-	 * A piano has no modifier keys, so one key is borrowed as one: the bottom A0,
-	 * the far left of an 88-key board, which is not a note anybody plays by
-	 * accident. Hold it and whatever you play next is read as a command rather
-	 * than as music — a single note, or a chord — and delivered to whoever asked
-	 * when you let go.
+	 * A piano has no modifier keys, so the bottom octave is borrowed as a row of
+	 * them: A0 up to G#1, twelve keys, one per pitch class. Nobody plays down
+	 * there by accident. Hold one and what you play next is read as a command
+	 * rather than as music, and the key you held is part of the command — it says
+	 * which note the rest is measured from.
 	 *
-	 * Deliberately a framework rather than a feature. Any module can ask for
-	 * commands; the scales tab is simply the first to. The note it listens on is
-	 * configurable, because not every keyboard has 88 keys.
+	 * That pairing is the point. One key alone could only name a thing; a key plus
+	 * a chord can say "this chord, in this key", which is enough for a module to
+	 * work out what you meant.
 	 *
-	 * Events still go out on the bus untouched, so the keys light and nothing
-	 * downstream has to know this exists. A module that DOES care asks
-	 * fnKey.isDown() and ignores the notes it would otherwise act on.
+	 * Deliberately a framework rather than a feature: any module may listen, the
+	 * range is configurable for keyboards shorter than 88 keys, and events still
+	 * go out on the bus untouched so the keys light as usual. A module that cares
+	 * asks isDown() and ignores what it would otherwise act on.
 	 */
 	var fnKey = {
-		note: 21,               /* A0 — the bottom key of an 88-key piano */
-		down: false,
+		low: 21,                /* A0 — the bottom key of an 88-key piano */
+		high: 32,               /* G#1 — twelve keys, one per pitch class */
+		down: null,             /* which one is held, if any              */
 		captured: [],
 		listeners: []
 	};
@@ -73,27 +75,27 @@ window.HTP = (function (window, document) {
 		var isOff = (type === 0x80 || (type === 0x90 && bytes[2] === 0));
 		if (!isOn && !isOff) return;
 
-		if (note === fnKey.note) {
+		if (note >= fnKey.low && note <= fnKey.high) {
 			if (isOn) {
-				fnKey.down = true;
+				fnKey.down = note;
 				fnKey.captured = [];
-			} else if (fnKey.down) {
-				fnKey.down = false;
+			} else if (fnKey.down === note) {
+				var held = fnKey.down;
 				var command = fnKey.captured.slice();
+				fnKey.down = null;
 				fnKey.captured = [];
-				if (command.length)
-					fnKey.listeners.slice().forEach(function (fn) {
-						try { fn(command); }
-						catch (e) { console.error('[HTP] function-key listener failed', e); }
-					});
+				fnKey.listeners.slice().forEach(function (fn) {
+					try { fn(command, held); }
+					catch (e) { console.error('[HTP] function-key listener failed', e); }
+				});
 			}
 			return;
 		}
 
-		/* Everything struck while it is held is part of the command, whether or
-		 * not it is still down when the key is released — that is what lets a
-		 * chord be rolled rather than struck exactly together. */
-		if (fnKey.down && isOn && fnKey.captured.indexOf(note) === -1)
+		/* Everything struck while one is held belongs to the command, whether or
+		 * not it is still down at release — that is what lets a chord be rolled
+		 * rather than struck exactly together. */
+		if (fnKey.down !== null && isOn && fnKey.captured.indexOf(note) === -1)
 			fnKey.captured.push(note);
 	}
 
@@ -551,10 +553,18 @@ window.HTP = (function (window, document) {
 		 *   HTP.fnKey.isDown();                               // ignore notes if true
 		 *   HTP.fnKey.setNote(36);                            // for shorter keyboards
 		 */
+		/*
+		 * The function keys — the bottom octave borrowed as modifiers.
+		 *   HTP.fnKey.onCommand(function (sounds, fnNote) { ... });  // on release
+		 *   HTP.fnKey.isDown();          // true while one is held: ignore the notes
+		 *   HTP.fnKey.held();            // which one, or null
+		 *   HTP.fnKey.setRange(36, 47);  // for shorter keyboards
+		 */
 		fnKey: {
-			isDown: function () { return fnKey.down; },
-			note: function () { return fnKey.note; },
-			setNote: function (n) { fnKey.note = n; },
+			isDown: function () { return fnKey.down !== null; },
+			held: function () { return fnKey.down; },
+			range: function () { return { low: fnKey.low, high: fnKey.high }; },
+			setRange: function (low, high) { fnKey.low = low; fnKey.high = high; },
 			onCommand: function (fn) { fnKey.listeners.push(fn); }
 		},
 		setSetting: setSetting,

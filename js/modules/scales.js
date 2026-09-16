@@ -1067,26 +1067,46 @@
 	}
 
 	/*
-	 * What the function key jumps to.
+	 * What a function-key command means.
 	 *
-	 * A single note keeps the group you are in and just changes the root, which is
-	 * the same thing the held octave does — two ways to ask, one for each hand
-	 * position. A chord changes the TYPE as well, to the scale that chord is
-	 * normally played over: the mapping is the ordinary one, and where it is a
-	 * judgement call it follows pianoscales.org's own summary — Dorian over minor
-	 * sevenths, Mixolydian over dominants.
+	 * The key you hold names the tonic; what you play is then read as a chord
+	 * WITHIN that key, and its scale degree is what picks the mode. That is the
+	 * modal system itself rather than a lookup table: the modes simply are the
+	 * major scale started from each of its degrees, so a chord's position in the
+	 * key is what decides which one you land in.
 	 *
-	 * Anything unrecognised changes nothing. Guessing a scale from a shape with no
-	 * settled answer would be worse than ignoring it.
+	 *   hold C, play D minor   -> the ii of C  -> D Dorian
+	 *   hold C, play G7        -> the V of C   -> G Mixolydian
+	 *   hold C, play C major   -> the I of C   -> C major
+	 *   hold C, play A minor   -> the vi of C  -> A natural minor
+	 *
+	 * The scale you land on is rooted on the CHORD, not on the key you held —
+	 * D Dorian, not C major — because that is the scale you would play over it.
+	 *
+	 * A chord whose quality does not match its degree is not diatonic to the key
+	 * you named, so the degree tells us nothing; those fall back to reading the
+	 * chord on its own. Anything unrecognised changes nothing.
 	 */
-	var CHORD_TO_GROUP = [
-		{ steps: [0, 4, 7],      group: 'major'      },
-		{ steps: [0, 3, 7],      group: 'minor'      },
-		{ steps: [0, 3, 6],      group: 'locrian'    },
-		{ steps: [0, 4, 7, 10],  group: 'mixolydian' },
-		{ steps: [0, 3, 7, 10],  group: 'dorian'     },
-		{ steps: [0, 4, 7, 11],  group: 'major'      },
-		{ steps: [0, 3, 6, 10],  group: 'locrian'    }
+	var MODE_BY_DEGREE = {
+		0:  { group: 'major',      quality: 'major' },
+		2:  { group: 'dorian',     quality: 'minor' },
+		4:  { group: 'phrygian',   quality: 'minor' },
+		5:  { group: 'lydian',     quality: 'major' },
+		7:  { group: 'mixolydian', quality: 'major' },
+		9:  { group: 'minor',      quality: 'minor' },
+		11: { group: 'locrian',    quality: 'diminished' }
+	};
+
+	/* Chord shapes, as semitones above the root. `quality` is the coarse class the
+	 * degree test uses; `group` is where an undiatonic chord falls back to. */
+	var CHORD_SHAPES_IN = [
+		{ steps: [0, 4, 7],     quality: 'major',      group: 'major'      },
+		{ steps: [0, 3, 7],     quality: 'minor',      group: 'minor'      },
+		{ steps: [0, 3, 6],     quality: 'diminished', group: 'locrian'    },
+		{ steps: [0, 4, 7, 10], quality: 'major',      group: 'mixolydian' },
+		{ steps: [0, 3, 7, 10], quality: 'minor',      group: 'dorian'     },
+		{ steps: [0, 4, 7, 11], quality: 'major',      group: 'major'      },
+		{ steps: [0, 3, 6, 10], quality: 'diminished', group: 'locrian'    }
 	];
 
 	function groupIndexById(id) {
@@ -1095,51 +1115,57 @@
 		return found;
 	}
 
-	function scaleIndexByPc(groupIndex, pc) {
-		var found = -1;
-		GROUPS[groupIndex].scales.forEach(function (scale, i) {
-			if (scale.pc === pc && found < 0) found = i;
-		});
-		return found;
-	}
-
 	function jumpTo(groupIndex, pc) {
-		if (groupIndex < 0) return false;
-		var index = scaleIndexByPc(groupIndex, pc);
-		if (index < 0) return false;
+		if (groupIndex < 0) return;
+		var index = -1;
+		GROUPS[groupIndex].scales.forEach(function (scale, i) {
+			if (scale.pc === pc && index < 0) index = i;
+		});
+		if (index < 0) return;
 		if (parseInt(groupEl.value, 10) !== groupIndex) {
 			groupEl.value = String(groupIndex);
 			fillScales(groupIndex);
 		}
 		selectEl.value = String(index);
 		show();
-		return true;
 	}
 
-	function runCommand(sounds) {
+	function shapeOf(sounds) {
 		var ordered = sounds.slice().sort(function (a, b) { return a - b; });
 		var root = ordered[0];
-		var pc = (((root % 12) + 12) % 12);
+		var steps = ordered.map(function (n) { return (((n - root) % 12) + 12) % 12; })
+			.filter(function (v, i, a) { return a.indexOf(v) === i; })
+			.sort(function (a, b) { return a - b; });
+		var match = null;
+		CHORD_SHAPES_IN.forEach(function (entry) {
+			if (match) return;
+			if (entry.steps.length === steps.length
+				&& entry.steps.every(function (v, i) { return v === steps[i]; }))
+				match = entry;
+		});
+		return { rootPc: (((root % 12) + 12) % 12), match: match };
+	}
 
-		/* One note: same group, new root. */
-		if (ordered.length === 1) {
-			jumpTo(parseInt(groupEl.value, 10), pc);
+	function runCommand(sounds, fnNote) {
+		if (!sounds.length) return;
+		var basePc = (((fnNote % 12) + 12) % 12);
+		var chord = shapeOf(sounds);
+		var degree = (((chord.rootPc - basePc) % 12) + 12) % 12;
+		var slot = MODE_BY_DEGREE[degree];
+
+		/* One note: its degree in the key you named is the mode. */
+		if (sounds.length === 1) {
+			if (slot) jumpTo(groupIndexById(slot.group), chord.rootPc);
+			else jumpTo(parseInt(groupEl.value, 10), chord.rootPc);
 			return;
 		}
 
-		var shape = ordered.map(function (n) { return (((n - root) % 12) + 12) % 12; })
-			.filter(function (v, i, a) { return a.indexOf(v) === i; })
-			.sort(function (a, b) { return a - b; });
-
-		var match = null;
-		CHORD_TO_GROUP.forEach(function (entry) {
-			if (match) return;
-			if (entry.steps.length === shape.length
-				&& entry.steps.every(function (v, i) { return v === shape[i]; }))
-				match = entry;
-		});
-		if (!match) return;
-		jumpTo(groupIndexById(match.group), pc);
+		if (!chord.match) return;
+		/* Diatonic to the key you named: the degree decides. Otherwise the chord
+		 * has to speak for itself. */
+		var group = (slot && slot.quality === chord.match.quality)
+			? slot.group : chord.match.group;
+		jumpTo(groupIndexById(group), chord.rootPc);
 	}
 
 	function applySounding() {
@@ -1226,8 +1252,8 @@
 			api.onMarkersChanged(function () {
 				if (current) show();
 			});
-			if (api.fnKey) api.fnKey.onCommand(function (sounds) {
-				if (current) runCommand(sounds);
+			if (api.fnKey) api.fnKey.onCommand(function (sounds, fnNote) {
+				if (current) runCommand(sounds, fnNote);
 			});
 
 			if (window.HTP.keyboard && window.HTP.keyboard.onRangeChange)
