@@ -306,6 +306,18 @@
 		return false;
 	}
 
+	/*
+	 * The name of a note as it was DRAWN — from the letter its notehead was
+	 * placed on, not from a fresh guess. Spell it independently and a G-flat on
+	 * the staff can print as F-sharp, which is the one thing a scale reference
+	 * must never do.
+	 */
+	function spelledName(sound, letter) {
+		var name = rootName((((sound % 12) + 12) % 12), letter);
+		return window.HTP.settings.octaveNumbers === false
+			? name : name + (Math.floor(sound / 12) - 1);
+	}
+
 	/* How a root is written, given the letter chosen for it. */
 	function rootName(pc, letter) {
 		var delta = (((pc - PC_OF_LETTER[letter]) % 12) + 12) % 12;
@@ -358,6 +370,7 @@
 	var staves = {};                /* 'rh' | 'lh' -> jQuery .staff  */
 	var containers = {};
 	var fingerRows = {};
+	var nameRows = {};
 	var unsubscribe = null;
 	var current = null;             /* the scale being shown         */
 	var sounding = {};              /* midi note -> true while held  */
@@ -483,10 +496,16 @@
 			 * resolve against the wrong number. A sibling row has neither
 			 * problem, and lines up because it is exactly as wide as the staff. */
 			var fingers = $('<div class="htp-scales__fingers"></div>');
-			container.append(box).append(fingers);
+			/* A second row under the fingering, for the name of a single note
+			 * while you hold it — under the note itself, in its own clef, rather
+			 * than in the middle of the pane where it says nothing about which
+			 * hand played it. */
+			var names = $('<div class="htp-scales__names"></div>');
+			container.append(box).append(fingers).append(names);
 			staves[hand] = staff;
 			containers[hand] = box;
 			fingerRows[hand] = fingers;
+			nameRows[hand] = names;
 			notation().renderStaffLines(staff);
 		});
 
@@ -507,6 +526,36 @@
 	 * paints, close the gap. Right for any glyph, any accidental, any staff size,
 	 * because it assumes nothing about them.
 	 */
+	/*
+	 * Put the fingering and the note name directly under the notehead.
+	 *
+	 * Both rows place their labels at the percentage the note was SPAWNED at, but
+	 * a notehead does not paint at that percentage: the symbol is offset by half
+	 * its width and the glyph is right-aligned inside it, so the ink lands some
+	 * way off. Measured, the name sat 26px right of the head it belonged to.
+	 *
+	 * Same remedy as the ledger lines — read where the head actually paints and
+	 * put the label there. The rows are exactly as wide as the staff, so one x in
+	 * pixels is all it takes.
+	 */
+	function alignColumns(hand) {
+		var row = fingerRows[hand].get(0);
+		if (!row) return;
+		var rowLeft = row.getBoundingClientRect().left;
+
+		staves[hand].find('.htp-scale-note').each(function () {
+			var sound = this.getAttribute('data-sound');
+			var head = this.querySelector('svg:not(.line) path');
+			if (!head) return;
+			var headRect = head.getBoundingClientRect();
+			if (!headRect.width) return;
+			var x = (headRect.left + headRect.width / 2) - rowLeft;
+			[fingerRows[hand], nameRows[hand]].forEach(function (target) {
+				target.find('[data-sound="' + sound + '"]').css({ left: x + 'px' });
+			});
+		});
+	}
+
 	function alignLedgers(symbol) {
 		var head = symbol.find('svg:not(.line) path').get(0);
 		if (!head) return;
@@ -537,6 +586,7 @@
 		var shifts = [];
 		var step = (LAST_PCT - FIRST_PCT) / (notes.length - 1);
 		fingerRows[hand].empty();
+		nameRows[hand].empty();
 
 		notes.forEach(function (note, i) {
 			var built = glyphForDegree(clefId, note.sound, note.letter, note.altLetter);
@@ -557,6 +607,12 @@
 
 			/* The finger that plays it, under the note, so the staff and the
 			 * keyboard tell the same story. */
+			nameRows[hand].append(
+				$('<span class="htp-scales__notename"></span>')
+					.attr('data-sound', note.sound)
+					.attr('data-name', spelledName(note.sound, note.letter))
+					.css({ left: (FIRST_PCT + i * step) + '%' }));
+
 			if (note.finger)
 				fingerRows[hand].append(
 					$('<span class="htp-scales__finger"></span>')
@@ -564,6 +620,8 @@
 						.css({ left: (FIRST_PCT + i * step) + '%' })
 						.text(note.finger));
 		});
+
+		alignColumns(hand);
 
 		var room = notation().roomForShiftsEm(
 			shifts.length ? Math.max.apply(null, shifts) : null,
@@ -638,6 +696,7 @@
 	function updateReadout() {
 		if (!readoutEl) return;
 		var sounds = Object.keys(held).map(Number).sort(function (a, b) { return a - b; });
+		if (applyNoteNames()) { readoutEl.innerHTML = ''; return; }
 		/* Nothing held: stay empty rather than explaining itself. The space is
 		 * still reserved, so naming a chord does not shift the staves. */
 		if (!sounds.length) {
@@ -937,6 +996,30 @@
 					complete && this.classList.contains('is-hinted'));
 			});
 		});
+	}
+
+	/*
+	 * A single held note is named under itself, in the clef it belongs to. Two or
+	 * more go to the middle instead, because an interval or a chord is a fact
+	 * about the notes together and belongs in one place, not split across two
+	 * staves.
+	 *
+	 * Returns whether the name found a home, so the middle readout knows to stay
+	 * out of the way — a note you play that is NOT in the scale has no slot, and
+	 * still needs naming somewhere.
+	 */
+	function applyNoteNames() {
+		var sounds = Object.keys(held).map(Number);
+		var single = sounds.length === 1 ? sounds[0] : null;
+		var placed = false;
+
+		$('.htp-scales__notename', root).each(function () {
+			var slot = $(this);
+			var mine = single !== null && parseInt(slot.attr('data-sound'), 10) === single;
+			slot.text(mine ? slot.attr('data-name') : '');
+			if (mine) placed = true;
+		});
+		return placed;
 	}
 
 	function applySounding() {
