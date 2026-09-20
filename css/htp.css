@@ -1541,10 +1541,51 @@ div.staff div.symbol.note.htp-shot svg.line {
 	width: 0.464em;
 }
 
-/* The notes coming towards you sit back a little, so the note you play reads
-   as the one in front. */
+/* The notes coming towards you sit back, so the note you play reads as the one
+   in front. Half strength: still plainly legible — it is what you are reading —
+   but no longer competing with your own note for the foreground. */
 .htp-pane[data-module="note-trainer"] div.staff div.symbol.note.visible:not(.htp-shot) {
-	opacity: 0.75;
+	opacity: 0.5;
+}
+
+/*
+ * A right answer pops.
+ *
+ * Green alone is a change of colour at the moment your eye is somewhere else —
+ * on the note coming towards you. Movement is what the eye actually catches, so
+ * a correct shot arrives slightly small and springs to size.
+ *
+ * Scaled about the NOTEHEAD, not the glyph box: `right` because the head is
+ * flush with the right edge of every note glyph's viewBox (an accidental is
+ * drawn to its left inside the same artwork), and 44.277% because that is where
+ * the head's painted centre sits in the 2em box — (315.305 + 156.776) / 1066.201.
+ * Anchoring anywhere else would slide the head off its line for the length of
+ * the animation, which is exactly the thing the staff must never do.
+ *
+ * Ledger lines are left out: they are a rule, not a note, and scaling one
+ * stretches it.
+ */
+@keyframes htp-shot-pop {
+	0%   { transform: scale(0.8); }
+	60%  { transform: scale(1.14); }
+	100% { transform: scale(1); }
+}
+
+/* Slow enough to read as a movement rather than a flicker. The eye needs
+   roughly a third of a second to follow something that is also telling it
+   where to look. */
+
+/* No fill: the last keyframe is scale(1), which is the element's own resting
+   size, so anything that stops the animation running — a hidden tab freezes it
+   on its first frame — leaves the note at full size rather than stranded at
+   0.8. A backwards fill would hold that 0.8 indefinitely. */
+div.staff div.symbol.note.htp-shot.correct svg:not(.line) {
+	transform-origin: right 44.277%;
+	animation: htp-shot-pop 420ms cubic-bezier(0.33, 1.25, 0.6, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	div.staff div.symbol.note.htp-shot.correct svg:not(.line) { animation: none; }
 }
 
 /* ------------------------------------------------ the key you must play */
@@ -1559,3 +1600,73 @@ div.staff div.symbol.note.htp-shot svg.line {
 .htp-key--black.is-target { background: #b8860b; }
 .htp-key--white.is-target.is-active { background: #f0b429; }
 .htp-key--black.is-target.is-active { background: #8a6508; }
+
+/*
+ * The name of the note you played, written under it — the letter and the
+ * octave, as free practice and the scales tab write them under what you hold.
+ *
+ * Two elements: `em` resolves against an element's OWN font-size, so the outer
+ * one positions in the staff's em (its `top` is set by showPlayedNote) and the
+ * inner one carries the small type. `margin-top: 100em` cancels .symbol's
+ * `top: -100em`, exactly as the noteheads do.
+ *
+ * Centred on the notehead rather than on the symbol: every glyph right-aligns
+ * its head inside the box, whose right edge sits 0.232em outside the head's
+ * centre, so a 1.6em label is centred at right: 0.232 - 0.8 = -0.568em.
+ */
+div.staff div.symbol.note.htp-shot .htp-shot__name {
+	position: absolute;
+	margin-top: 100em;
+	/* The head's centre sits 0.232em inside the box's right edge — the glyph is
+	   right-aligned with a 0.1em margin and the head's centre is 0.132em in
+	   from its own right edge — so a 1.6em label centres on it at
+	   0.232 - 0.8 = -0.568em. Confirmed against the painted head, with the pop
+	   animation NOT running: measured while it is, the head is still scaled and
+	   its centre reads about 2px off, which is the animation and not the label. */
+	right: -0.568em;
+	left: auto;
+	width: 1.6em;
+	text-align: center;
+	/* No strut. The span keeps the staff's font-size, because its own `right`
+	   and `top` are in staff em — but at line-height 1 that font-size gives it
+	   a line box a whole em tall, which is five times the type it holds and
+	   puts the label well below the room reserved for it. The block inside
+	   sets the real height. */
+	line-height: 0;
+	pointer-events: none;
+}
+
+div.staff div.symbol.note.htp-shot .htp-shot__name b {
+	display: block;
+	font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+	font-size: 0.22em;
+	font-weight: 700;
+	line-height: 1;
+	white-space: nowrap;
+}
+
+/* The same green and red as the notehead it names. Set here rather than
+   inherited: --htp-played-colour is defined on the glyph, which is the label's
+   SIBLING, so nothing of it reaches the label. */
+div.staff div.symbol.note.htp-shot.correct .htp-shot__name b { color: #1e9e5a; }
+div.staff div.symbol.note.htp-shot.wrong .htp-shot__name b { color: #c0392b; }
+
+/* ------------------------------------------------ don't shave the noteheads */
+
+/*
+ * Every notation glyph's artwork is flush with its own viewBox — measured, not
+ * assumed: the notehead's ink ends at exactly the viewBox's right edge in all
+ * four note glyphs, and the sharp's runs 0.001 units past it. An <svg> clips to
+ * its viewport by default, so the browser cut the outermost column of every
+ * notehead, taking the antialiased fringe with it. A round head with its edge
+ * shaved reads as flattened — "just a little bit cut off on the right" — in
+ * every pane at once, because every pane draws the same glyphs.
+ *
+ * There is nothing outside the viewBox to reveal, so letting them paint outside
+ * it can only give back the fringe that was being thrown away.
+ *
+ * Ledger lines are left alone: they carry an explicit width and
+ * preserveAspectRatio="none", so their stroke is stretched to the box on
+ * purpose and has no fringe to lose.
+ */
+div.staff div.symbol svg:not(.line) { overflow: visible; }

@@ -2098,6 +2098,21 @@ $(function(){
 	 * The interval you missed by is still there to read: both noteheads are on
 	 * the same staff at the same moment, one yours and one the exercise's.
 	 */
+	/*
+	 * Where the name of the note you played is written, in em from the top of
+	 * the staff box: clear of the staff, and clear of the lowest note this
+	 * level can ask for, so a name never lands on a ledger note.
+	 */
+	var NAME_GAP_EM = 0.30;        /* below the lowest note the level reaches */
+	var NAME_HEIGHT_EM = 0.34;     /* the label's own height, 0.22em of type  */
+	var NAME_MIN_TOP_EM = 2.12;    /* just under the staff box                */
+	var playedNameTopEm = function(){
+		return Math.max(NAME_MIN_TOP_EM, markerTopEm(state.level.shiftFrom) + NAME_GAP_EM);
+	};
+	/* The room the name needs below the staff, as container padding. */
+	var playedNameRoomEm = function(){
+		return playedNameTopEm() + NAME_HEIGHT_EM + STAFF_TOP_OFFSET_EM - 2;
+	};
 	var showPlayedNote = function(activeNote, sound, isCorrect){
 		var staff = staffs[activeNote.staff];
 		if (!staff || !staff.clef)
@@ -2137,6 +2152,19 @@ $(function(){
 		}
 
 		$('#' + staff.id).append(symbol);
+
+		/*
+		 * The letter, and the octave, written under the note — the same thing
+		 * free practice and the scales tab print under what you are holding.
+		 * It names what YOU played, never what is being asked for, so it gives
+		 * nothing away; on a wrong note it is the quickest way to see what you
+		 * actually hit. Two elements, because `em` resolves against an
+		 * element's own font-size: the outer one positions in the staff's em,
+		 * the inner one carries the small type.
+		 */
+		symbol.append($('<span class="htp-shot__name"></span>')
+			.css({top: playedNameTopEm() + 'em'})
+			.append($('<b></b>').text(nameForSound(sound, spellingPreference(null)))));
 
 		/* The shot stays for exactly as long as the key is held —
 		 * hidePlayedNote() takes it away on note-off. */
@@ -2693,7 +2721,11 @@ $(function(){
 		stats = Object.assign({}, defaultStats);
 		var paddingTop = Math.max(0, state.level.shiftTo - 4) * grid.stepEm;
 		var paddingBottom = Math.max(0, -state.level.shiftFrom - 4) * grid.stepEm;
-		
+		/* Room under the staff for the name of the note you play. A container
+		 * clips to its padding box, so without this the name is drawn and then
+		 * cut off — which looks exactly like it never being drawn. */
+		paddingBottom = Math.max(paddingBottom, playedNameRoomEm());
+
 		trainerStaffContainers().css({'padding-top': paddingTop+'em', 'padding-bottom': paddingBottom+'em'});
 		applyStaffVisibility();
 
