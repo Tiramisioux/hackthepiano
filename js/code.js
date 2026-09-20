@@ -1699,9 +1699,10 @@ $(function(){
 		return gap > 0 ? [{gapBelow: gap}, {clipAbove: true}] : [null, null];
 	};
 	var renderTrainerMarkers = function(){
-		var shown = state.level.staffs.map(shownClefOf);
+		var staffList = activeStaffs();
+		var shown = staffList.map(shownClefOf);
 		var pair = pairOptions(shown.length > 1 ? gapBetween(shown[0].clef, shown[1].clef) : 0);
-		state.level.staffs.forEach(function(staff, i){
+		staffList.forEach(function(staff, i){
 			renderStaffMarkers($('#' + staff.id), shown[i].clef, shown[i].el, pair[i]);
 		});
 	};
@@ -1762,7 +1763,7 @@ $(function(){
 	 * than leaving a headless set of lines behind.
 	 */
 	var applyStaffVisibility = function(){
-		var used = state.level.staffs.map(function(staff){ return staff.id; });
+		var used = activeStaffs().map(function(staff){ return staff.id; });
 		trainerStaffContainers().each(function(){
 			var id = $('.staff', this).attr('id');
 			var inLevel = used.indexOf(id) !== -1;
@@ -1812,7 +1813,7 @@ $(function(){
 
 		if (!window.HTP || !window.HTP.settings || !window.HTP.settings.musicalClefDistance)
 			return;
-		if (state.level.staffs.length < 2)
+		if (activeStaffs().length < 2)
 			return;
 
 		/* The clefs actually parked at the left, as the markings and the
@@ -1820,8 +1821,8 @@ $(function(){
 		 * the right scrolling in. Spaced from the pick, the staves jumped to
 		 * their musical distance half a minute before the clefs arrived, and
 		 * back again if the next pick differed before these had parked. */
-		var upper = shownClefOf(state.level.staffs[0]).clef;
-		var lower = shownClefOf(state.level.staffs[1]).clef;
+		var upper = shownClefOf(activeStaffs()[0]).clef;
+		var lower = shownClefOf(activeStaffs()[1]).clef;
 		if (!upper || !lower || upper == lower)
 			return;
 
@@ -1864,6 +1865,28 @@ $(function(){
 	 * see createNewNote().
 	 */
 	var STATIC_CLEF_LEFT_EM = 0.2;
+	/*
+	 * The staves a clef set actually needs.
+	 *
+	 * A level lists two staves and a clef set says what each one carries. Where
+	 * the two carry DIFFERENT clefs that is a grand staff and both are wanted.
+	 * Where they carry the same one — clefSets.treble puts a treble clef on
+	 * both — the second is a copy of the first: same clef, same pitch range,
+	 * the same notes scattered across two identical staves, which reads as the
+	 * app having drawn everything twice. One staff then, and every note goes to
+	 * it. The level's own list is never touched; this is per clef set.
+	 */
+	var staffsForClefSet = function(clefSet){
+		var chosen = state.level.staffs.filter(function(staff){ return !!clefSet[staff.id]; });
+		if (chosen.length === 2 && clefSet[chosen[0].id] === clefSet[chosen[1].id])
+			chosen = [chosen[0]];
+		return chosen;
+	};
+	/* The staves in play right now. Before a clef set has been chosen, the
+	 * level's own list is all there is to go on. */
+	var activeStaffs = function(){
+		return state.activeStaffs || state.level.staffs;
+	};
 	/* Where the notes must stop: the right-hand edge of the parked clef, in
 	 * hundredths of a pixel. Measured when the clef is drawn rather than every
 	 * frame, so the animation loop reads a number instead of the layout. */
@@ -1872,7 +1895,7 @@ $(function(){
 		staff.clefRight = (el && el.length) ? (el.position().left + el.outerWidth()) : 0;
 	};
 	var measureClefs = function(){
-		state.level.staffs.forEach(measureClef);
+		activeStaffs().forEach(measureClef);
 	};
 	var removeStaticClefs = function(){
 		Object.keys(staffs).forEach(function(id){
@@ -1891,8 +1914,12 @@ $(function(){
 
 		state.activeClefSet = clefSet;
 		state.activeKey = key;
+		state.activeStaffs = staffsForClefSet(clefSet);
 
-		state.level.staffs.forEach(function(staff){
+		/* A staff this clef set has dropped must not keep the clef it had. */
+		removeStaticClefs();
+
+		state.activeStaffs.forEach(function(staff){
 			staff.clef = clefSet[staff.id];
 			var staffEl = $('#' + staff.id);
 			staffEl.children('.symbol.clef').remove();
@@ -1953,7 +1980,7 @@ $(function(){
 				return;
 		}
 
-		var staff = getRandomArrayEl(state.level.staffs);
+		var staff = getRandomArrayEl(activeStaffs());
 		var clef = clefs[staff.clef];
 		var notes = getNotesForClef(staff.clef);
 		var staffEl = $('#' + staff.id);
@@ -1964,7 +1991,19 @@ $(function(){
 			var position = lastSymbol.position + lastSymbol.width;
 			startPosition = Math.max(startPosition, position);
 		}
-		var symbol = $('<div class="symbol note"></div>')
+		/*
+		 * Drawn from the moment it is created, not from the moment it becomes
+		 * the note to play.
+		 *
+		 * The original left an unrevealed note as a grey slab — .symbol paints
+		 * a black box at 0.2 opacity and only .visible clears it — so the
+		 * queue behind the leading note read as a row of grey fields floating
+		 * between the notes. Sight-reading is looking ahead, so the notes
+		 * coming are worth seeing; `htp-queued` keeps them fainter than the
+		 * one you owe an answer to, which is the distinction the slab was
+		 * really carrying.
+		 */
+		var symbol = $('<div class="symbol note visible htp-queued"></div>')
 		var activeNote = {type: symbolTypes.note, notes: [], symbol: symbol, position: startPosition, staff: staff.id}
 		var numberOfAdditionalTopLines = 0;
 		var numberOfAdditionalBottomLines = 0;
@@ -2003,7 +2042,7 @@ $(function(){
 	setInterval(function() {
 		if (paused)
 			return;
-		var staffWidth = 100 * $('#' + state.level.staffs[0].id).width();
+		var staffWidth = 100 * $('#' + activeStaffs()[0].id).width();
 		var step = scrollStep();
 		var firstNote = false;
 		for (var i = 0; i < state.activeNotes.length; i++)
@@ -2019,7 +2058,9 @@ $(function(){
 					note.isVisible = true;
 					note.playable = true;
 					note.time = 0;
-					note.symbol.addClass('visible');
+					/* It is fully on the staff and it is yours to answer: up to
+					 * full strength, and the reaction clock starts here. */
+					note.symbol.addClass('visible').removeClass('htp-queued');
 					updateKeyHint();
 				}
 			}
@@ -2733,6 +2774,7 @@ $(function(){
 		 * possibly its staff, are about to be wrong. createNewNote() draws the
 		 * new one as its first act. */
 		removeStaticClefs();
+		state.activeStaffs = null;     /* the new level's clef set decides */
 		state.clefChangeDue = true;
 		removeAllNotes();
 		updateResults();
@@ -2776,7 +2818,7 @@ $(function(){
 				newNoteInterval: state.newNoteInterval,
 				scrollStep: scrollStep(),
 				activeKey: state.activeKey ? state.activeKey.decorator : null,
-				staffs: state.level.staffs.map(function(staff){
+				staffs: activeStaffs().map(function(staff){
 					return {id: staff.id, clef: staff.clef, shownClef: staff.shownClef,
 						clefRight: staff.clefRight, width: $('#' + staff.id).width()};
 				})
