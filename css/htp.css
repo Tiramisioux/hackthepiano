@@ -1548,6 +1548,13 @@ div.staff div.symbol.note.htp-shot svg.line {
 	opacity: 0.5;
 }
 
+/* Still queued behind the note you owe an answer to. Fainter, so which one is
+   live stays obvious — that is the only thing the original's grey slab was
+   really saying, and it said it by hiding the note entirely. */
+.htp-pane[data-module="note-trainer"] div.staff div.symbol.note.htp-queued:not(.htp-shot) {
+	opacity: 0.22;
+}
+
 /*
  * A right answer pops.
  *
