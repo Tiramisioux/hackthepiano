@@ -17,10 +17,18 @@
 	'use strict';
 
 	/* Width steps: start at the C4 octave, then widen downwards, then both ways. */
+	/*
+	 * Every range ends on a C, not on the B below it.
+	 *
+	 * A one-octave scale needs thirteen keys, not twelve, so a range stopping at
+	 * B left the top scale's closing note with no key to land on: C1-B5 put the
+	 * right hand on C5 and its final C6 nowhere at all. One extra key at the top
+	 * of each range is all it takes, and the label then says what you get.
+	 */
 	var RANGES = [
-		{ label: 'C4',      low: 60,  high: 71  },   /* 1 octave   */
-		{ label: 'C2–B4',   low: 36,  high: 71  },   /* 3 octaves  */
-		{ label: 'C1–B5',   low: 24,  high: 83  },   /* 5 octaves  */
+		{ label: 'C4–C5',   low: 60,  high: 72  },   /* 1 octave   */
+		{ label: 'C2–C5',   low: 36,  high: 72  },   /* 3 octaves  */
+		{ label: 'C1–C6',   low: 24,  high: 84  },   /* 5 octaves  */
 		{ label: '88 keys', low: 21,  high: 108 }    /* full piano */
 	];
 	var DEFAULT_RANGE = 1;
