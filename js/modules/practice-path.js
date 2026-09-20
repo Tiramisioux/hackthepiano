@@ -759,9 +759,11 @@
 			stagePickEl.blur();
 		});
 
+		/* Shared with the flash cards, which offer the same switch: one body
+		 * class, so the two never fight over the keyboard. */
 		var noLabels = el.querySelector('.htp-pp__nolabels');
 		noLabels.addEventListener('change', function () {
-			document.body.classList.toggle('htp-pp-nolabels', noLabels.checked);
+			document.body.classList.toggle('htp-nolabels', noLabels.checked);
 		});
 	}
 
@@ -813,7 +815,9 @@
 	 */
 	function renderScaffold(clefId) {
 		notation().renderStaffMarkers(staffEl, clefId);
-		staffEl.find('.htp-markers .htp-marker').each(function () {
+		/* Rules, bands and the legend's letters alike: a letter beside the
+		 * clef names a line as surely as a rule along it does. */
+		staffEl.find('.htp-markers [data-htp-marker-shift]').each(function () {
 			var marker = $(this);
 			var shift = parseFloat(marker.attr('data-htp-marker-shift'));
 			if (!isFinite(shift)) return;
@@ -868,6 +872,28 @@
 	function showStaff(on) {
 		stavesEl.hidden = !on;
 		promptNameEl.hidden = on;
+	}
+
+	/*
+	 * Light up the key the prompt is waiting for, if that option is on. The
+	 * same switch the trainer and the flash cards follow. On a step pair it
+	 * moves to the second note as the first lands, so it teaches the move
+	 * rather than the pair.
+	 */
+	function applyKeyHint() {
+		var keyboard = window.HTP.keyboard;
+		if (!keyboard || !keyboard.setHints) return;
+
+		var current = session && session.current;
+		var expected = (current && current.phase !== PHASE_DONE)
+			? current.item.sounds[current.progress] : undefined;
+		if (!window.HTP.settings.showKeyHint || expected === undefined) {
+			keyboard.clearHints();
+			return;
+		}
+		var hints = {};
+		hints[expected] = { target: true };
+		keyboard.setHints(hints);
 	}
 
 	/* -------------------------------------------------------- the readouts */
@@ -980,9 +1006,10 @@
 			setFeedback('', 'Find it on the keyboard.');
 		} else {
 			showStaff(true);
-			renderScaffold(item.clef);
+			/* Clef first: the markings and the legend are placed beside it. */
 			var clef = notation().buildClefSymbol(item.clef);
 			if (clef) staffEl.append(clef.css({ left: '0.2em' }));
+			renderScaffold(item.clef);
 
 			var shifts = [];
 			if (item.type === 'step') {
@@ -1002,6 +1029,7 @@
 		 * depends on the landmark having faded as well as on the option. */
 		session.current.scaffold = staffEl.find('.htp-marker').length > 0;
 
+		applyKeyHint();
 		updateHeader();
 	}
 
@@ -1077,6 +1105,7 @@
 		session.answered++;
 		current.phase = PHASE_DONE;
 		updateHeader();
+		applyKeyHint();
 		markCorrect();
 
 		/*
@@ -1209,8 +1238,10 @@
 			current.progress++;
 			markNoteCorrect(current.progress - 1);
 			if (current.progress >= current.item.sounds.length) succeed();
-			else if (current.phase === PHASE_ASK)
+			else if (current.phase === PHASE_ASK) {
 				setFeedback('', 'Good — now the next one.');
+				applyKeyHint();
+			}
 			return;
 		}
 
@@ -1268,6 +1299,7 @@
 			session = newSession();
 
 			api.onSettingChange(function (key) {
+				if (key === 'showKeyHint') applyKeyHint();
 				if (!session || !session.current) return;
 				if (key === 'lineMarkers' || key.indexOf('landmark') === 0
 					|| key === 'colourNotes' || key.indexOf('showClef') === 0
@@ -1284,6 +1316,9 @@
 
 		onShow: function (el, api) {
 			if (session && !session.current) advance();
+			var noLabels = el.querySelector('.htp-pp__nolabels');
+			if (noLabels) noLabels.checked = document.body.classList.contains('htp-nolabels');
+			applyKeyHint();
 			markSessionStart();
 			if (unsubscribe) return;
 			unsubscribe = api.midi.subscribe(function (bytes) {
@@ -1305,6 +1340,10 @@
 			/* Key-ups that happen while the pane is hidden never reach us, so a
 			 * note held at the moment you switch away would look held forever. */
 			held = {};
+			/* The hints are this tab's; left on the keys they would follow you
+			 * into the next one and read as part of its exercise. */
+			if (window.HTP.keyboard && window.HTP.keyboard.clearHints)
+				window.HTP.keyboard.clearHints();
 			markSessionEnd();
 		},
 

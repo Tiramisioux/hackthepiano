@@ -36,6 +36,14 @@ The fork's additions were built with [Claude Code](https://claude.com/claude-cod
   on a line gets a dashed rule and one in a space gets a filled band — the two can
   never collide. The same colours tint the piano keys, shaded by register: darker
   below middle C, brighter above it. C, F and G can each be switched off.
+- **A legend beside the clef.** The letter of each staff line, and of each
+  space, printed small just right of the clef — E G B D F and F A C E on a
+  treble staff — switched separately. With *Colour notes* on, the landmark
+  letters take their landmark colour.
+- **Flash cards.** The trainer's exercise with nothing moving: one card at a
+  time, held until you play it — a note drawn on the staff, or a note named
+  in letters for you to find on the keyboard. It uses the trainer's own levels,
+  so the pool, staves, clefs and keys are the same; only the clock is gone.
 - **Musical clef distance.** Optionally space the grand staff by the true pitch
   distance between its clefs rather than the wider gap sheet music engraves, so
   the two staves read as one continuous pitch space.

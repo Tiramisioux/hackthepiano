@@ -229,11 +229,15 @@
 			var existing = el.querySelector('.htp-key__hint');
 			if (existing) el.removeChild(existing);
 			el.classList.remove('is-hinted');
+			el.classList.remove('is-target');
 
 			var hint = keyHints && keyHints[key];
 			if (!hint) return;
 
-			el.classList.add('is-hinted');
+			/* `target` means "this is the key the exercise is waiting for",
+			 * which has to outshout a scale's hint rather than join it: a hint
+			 * groups keys, a target names one. */
+			el.classList.add(hint.target ? 'is-target' : 'is-hinted');
 			var box = document.createElement('span');
 			box.className = 'htp-key__hint';
 			/* The thumb is drawn larger than the other fingers. In scale playing it

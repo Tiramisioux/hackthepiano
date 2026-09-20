@@ -184,7 +184,10 @@
 		{ id: 'optOctaveNumbers',       setting: 'octaveNumbers',       apply: null },
 		{ id: 'optLandmarkC',           setting: 'landmarkC',           apply: 'applyLineMarkers' },
 		{ id: 'optLandmarkF',           setting: 'landmarkF',           apply: 'applyLineMarkers' },
-		{ id: 'optLandmarkG',           setting: 'landmarkG',           apply: 'applyLineMarkers' }
+		{ id: 'optLandmarkG',           setting: 'landmarkG',           apply: 'applyLineMarkers' },
+		{ id: 'optLegendLines',         setting: 'legendLines',         apply: 'applyLineMarkers' },
+		{ id: 'optLegendSpaces',        setting: 'legendSpaces',        apply: 'applyLineMarkers' },
+		{ id: 'optShowKeyHint',         setting: 'showKeyHint',         apply: null }
 	];
 
 	/* Settings that also change how notes already on a staff are drawn, so the
@@ -289,6 +292,30 @@
 	var STAFF_SIZE_MAX = 110;
 	var STAFF_SIZE_STEP = 6;
 
+	/* Scroll speed, as a percentage of the original 35px/s. Down to a quarter,
+	 * which is slow enough to read a ledger line you have never met, and up to
+	 * three times, which is faster than anybody sight-reads. */
+	var SPEED_MIN = 25;
+	var SPEED_MAX = 300;
+	var SPEED_STEP = 25;
+
+	function clampSpeed(value) {
+		var speed = parseInt(value, 10);
+		if (isNaN(speed)) speed = 100;
+		return Math.max(SPEED_MIN, Math.min(SPEED_MAX, speed));
+	}
+
+	/* The number shown in the control. The trainer reads the setting itself,
+	 * every frame, so there is nothing else to apply. */
+	function applyScrollSpeed() {
+		var label = document.getElementById('optSpeedValue');
+		if (label) label.textContent = clampSpeed(window.HTP.settings.scrollSpeed) + '%';
+	}
+
+	function nudgeSpeed(delta) {
+		window.HTP.setSetting('scrollSpeed', clampSpeed(window.HTP.settings.scrollSpeed + delta));
+	}
+
 	/*
 	 * Turning a clef off removes its whole staff — lines and all — not just the
 	 * glyph. js/code.js owns the trainer's staves; a module that draws its own
@@ -347,12 +374,22 @@
 		if (smaller) smaller.addEventListener('click', function () { nudgeStaffSize(-STAFF_SIZE_STEP); });
 		if (bigger) bigger.addEventListener('click', function () { nudgeStaffSize(STAFF_SIZE_STEP); });
 
+		var slower = document.getElementById('optSpeedSlower');
+		var faster = document.getElementById('optSpeedFaster');
+		if (slower) slower.addEventListener('click', function () { nudgeSpeed(-SPEED_STEP); });
+		if (faster) faster.addEventListener('click', function () { nudgeSpeed(SPEED_STEP); });
+
 		window.HTP.onSettingChange(function (key) {
 			if (key === 'staffSize') applyStaffSize();
+			if (key === 'scrollSpeed') applyScrollSpeed();
 			if (key.indexOf('showClef') === 0) applyClefVisibility();
 			if (RECOLOUR_ON.indexOf(key) !== -1
 				&& typeof window.HTP.applyNoteColours === 'function')
 				window.HTP.applyNoteColours();
+			/* The legend's landmark letters take their colour from the same
+			 * switch as the noteheads, and are drawn with the markings. */
+			if (key === 'colourNotes' && typeof window.HTP.applyLineMarkers === 'function')
+				window.HTP.applyLineMarkers();
 		});
 
 		var fullscreenButton = document.getElementById('htpFullscreen');
@@ -379,6 +416,7 @@
 		setOptionsOpen(readStoredOptionsOpen());
 
 		applyClefVisibility();
+		applyScrollSpeed();
 
 		/* js/code.js has already drawn the first clef by now, so this both sets
 		 * the restored size and re-applies everything positioned against it. */

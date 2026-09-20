@@ -12,10 +12,23 @@
  * The option checkboxes are app chrome and are bound in js/htp-panes.js, not
  * here: they drive the keyboard and any module that draws a staff, not just
  * this one.
+ *
+ * The one thing it does do is tell the trainer when its pane is on screen.
+ * Everything the trainer draws is measured from the rendered layout, and a
+ * hidden pane measures as nothing — so it only runs while it can be seen, and
+ * picks up exactly where it left off when the tab comes back.
  */
 window.HTP.register({
 	id: 'note-trainer',
 	title: 'Note trainer',
 	description: 'Read the note on the staff and play it.',
-	staticPane: true
+	staticPane: true,
+
+	onShow: function (root, api) {
+		if (typeof api.resumeTrainer === 'function') api.resumeTrainer();
+	},
+
+	onHide: function (root, api) {
+		if (typeof api.pauseTrainer === 'function') api.pauseTrainer();
+	}
 });

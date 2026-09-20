@@ -1068,16 +1068,27 @@ $(function(){
 	    }
 	    return array;
 	};
-	var getNotesForClef = function(clef, numberOfNotes){
-		var schema = getRandomArrayEl(state.level.schemas);
+	/*
+	 * Pick the notes for one prompt in one clef: a random schema of the level,
+	 * rooted on a random note of the level's pool, spelled against the key.
+	 *
+	 * `level` and `key` default to the trainer's own, which is the only way it
+	 * was ever called. Passing them lets a module ask the same question of the
+	 * same level table without touching the trainer's state — the flash cards
+	 * draw their prompts from exactly this.
+	 */
+	var getNotesForClef = function(clef, level, key){
+		level = level || state.level;
+		key = key || state.activeKey;
+		var schema = getRandomArrayEl(level.schemas);
 		var availableNotes = shuffleArray(notes.filter(function(n){
 			var shift = n.clefs[clef].shift;
-			if (shift < state.level.shiftFrom || shift > state.level.shiftTo)
+			if (shift < level.shiftFrom || shift > level.shiftTo)
 				return false;
 			var isEven = shift % 2 == 0;
-			if ((isEven && !state.level.shiftsEven) || (!isEven && !state.level.shiftsOdd))
+			if ((isEven && !level.shiftsEven) || (!isEven && !level.shiftsOdd))
 				return false;
-			return state.level.decorators.includes(n.decorator);
+			return level.decorators.includes(n.decorator);
 		}));
 
 		var selectedNotes = [];
@@ -1097,8 +1108,8 @@ $(function(){
 				if (!foundNotes.length)
 					break;
 				var n = Object.assign({}, foundNotes[0]);
-				var exists = state.activeKey.lines.includes(n.line);
-				if ((exists && state.activeKey.decorator == n.decorator)
+				var exists = key.lines.includes(n.line);
+				if ((exists && key.decorator == n.decorator)
 					|| (!exists && n.decorator == decorators.natural))
 				{
 					n.decorator = decorators.none;
@@ -1122,28 +1133,92 @@ $(function(){
 		state.noteIndex = 0;
 		state.activeClefSet = null;
 		state.activeKey = null;
+		/* The clef itself stays: it is furniture, not one of the notes. */
+		updateKeyHint();
 	}
+	/*
+	 * Size a symbol's box to the glyphs it holds — the notehead and any
+	 * accidental, but not the ledger lines, which span whatever width the box
+	 * ends up with. The span is a difference of positions, so it is the same
+	 * wherever the symbol happens to be; the original took the leftmost glyph
+	 * as min(0, left), which only gave the right answer because every symbol
+	 * was still parked off-screen at -5000px when it was measured.
+	 *
+	 * Measured from the rendered layout, so it must run with the symbol on
+	 * screen: in a hidden pane every glyph reports a width of 0.
+	 */
+	var measureSymbol = function(note){
+		var left = null;
+		var right = null;
+		$('svg', note.symbol).each(function(){
+			if($(this).hasClass('line'))
+				return;
+			var l = $(this).position().left;
+			var r = l + $(this).outerWidth(true);
+			left = (left === null) ? l : Math.min(left, l);
+			right = (right === null) ? r : Math.max(right, r);
+		});
+		var width = (left === null) ? 0 : Math.ceil(right - left);
+		note.symbol.width(width);
+		note.width = 100 * note.symbol.outerWidth();
+	};
+	/* Symbols appended but not yet measured and queued. */
+	var pendingSymbols = 0;
 	var addSymbol = function(staffEl, note){
 		note.time = 0;
 		staffEl.append(note.symbol);
+		pendingSymbols++;
 		setTimeout(function(){
-			var width = 0;
-			var left = 0;
-			$('svg', note.symbol).each(function(){
-				if($(this).hasClass('line'))
-					return;
-				left = Math.min(left, $(this).position().left);
-			});
-			$('svg', note.symbol).each(function(){
-				if($(this).hasClass('line'))
-					return;
-				width = Math.max(width, $(this).position().left + $(this).outerWidth(true) - left);
-			});
-			width = Math.ceil(width);
-			note.symbol.width(width);
-			note.width = 100 * note.symbol.outerWidth();
+			pendingSymbols--;
+			measureSymbol(note);
+			/* Drawn where it starts, now that it is measured. The animation
+			 * loop leaves a parked clef alone, so a clef that begins at the
+			 * left edge — one created while the staff had no width — would
+			 * otherwise keep the stylesheet's off-screen parking position and
+			 * never be seen at all. */
+			note.symbol.css({left: Math.round(note.position / 100) + 'px'});
 			state.activeNotes.push(note);
 		}, 10);
+	};
+	/*
+	 * The trainer runs only while its pane is on screen.
+	 *
+	 * Everything about a symbol is measured from the rendered layout — the
+	 * staff's width decides where a note starts, and a glyph's width decides
+	 * how wide its box is — and a hidden pane reports 0 for all of it. Left
+	 * running behind another tab, the trainer parked clefs at the left edge
+	 * without ever drawing them, sized notes to nothing, and missed every one
+	 * of them; the invisible clef then surfaced later, sliding out from under
+	 * the next clef to arrive. So while the pane is hidden nothing is created
+	 * and nothing moves, and the exercise resumes exactly where it was.
+	 *
+	 * It starts paused: the first clef is created only once the pane is
+	 * actually showing, which at page load is after js/htp-panes.js has run.
+	 */
+	var paused = true;
+	var pauseTrainer = function(){
+		paused = true;
+		/* The hints are the trainer's while it is up; left behind they would
+		 * follow you into the next tab and read as part of its exercise. */
+		if (window.HTP && window.HTP.keyboard && window.HTP.keyboard.clearHints)
+			window.HTP.keyboard.clearHints();
+	};
+	var resumeTrainer = function(){
+		if (!paused)
+			return;
+		paused = false;
+		/* The legend sits beside the parked clef, whose width was 0 while
+		 * the pane was hidden. */
+		measureClefs();
+		applyLineMarkers();
+		updateKeyHint();
+		/* Nothing on the staff — the pane was hidden when the level was set
+		 * up — so start it now rather than waiting out the note interval. */
+		if (!state.activeNotes.length && !pendingSymbols)
+		{
+			clearTimeout(state.newNoteHandler);
+			createNewNote();
+		}
 	};
 	/* Optional: space the two staves by the true musical interval between their
 	 * clefs instead of the wider gap sheet music conventionally engraves.
@@ -1372,10 +1447,14 @@ $(function(){
 		$('.staff').each(function(){ renderStaffLines($(this)); });
 		repositionGlyphs();
 		if (typeof applyStaffSpacing === 'function') applyStaffSpacing();
+		/* A symbol's box was sized in px at the old staff size; the legend is
+		 * placed from the parked clef's box, so it has to be current. */
+		state.activeNotes.forEach(measureSymbol);
 		if (state.level)
-			state.level.staffs.forEach(function(staff){
-				renderStaffMarkers($('#' + staff.id), staff.clef);
-			});
+		{
+			measureClefs();
+			renderTrainerMarkers();
+		}
 		if (window.HTP && typeof window.HTP.notifyMarkersChanged === 'function')
 			window.HTP.notifyMarkersChanged();
 	};
@@ -1415,71 +1494,216 @@ $(function(){
 				if (key === 'staffSize') setTimeout(apply, 0);
 			});
 	};
-	/* Draw the landmark layer into one staff element for one clef. Shared by the
-	 * trainer and by any module that renders its own staves. */
-	var renderStaffMarkers = function(staffEl, clefId){
+	/*
+	 * The legend: the letter of each staff line and space, printed small just
+	 * to the right of the clef — E G B D F up the lines of a treble staff, F A
+	 * C E up its spaces. Lines and spaces are switched separately, and with
+	 * "Colour notes" on the landmark letters take their landmark colour, shaded
+	 * by register exactly as the noteheads and the markings are.
+	 */
+	var STEP_LETTERS = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
+	var LEGEND_GAP_EM = 0.05;      /* between the clef and the letters */
+	/* One column for the lines and one for the spaces, side by side. A line's
+	 * letter and the next space's are only one step apart, and the type is
+	 * taller than a step — in a single column they overprint. */
+	var LEGEND_COLUMN_EM = 0.24;
+	var LEGEND_SHIFT_TOP = 4;      /* the top line; nothing above it   */
+	var LEGEND_SHIFT_BOTTOM = -4;  /* the bottom line                  */
+	/*
+	 * Draw the landmark layer into one staff element for one clef: the rules
+	 * and bands, and the legend. Shared by the trainer and by any module that
+	 * renders its own staves.
+	 *
+	 * `clefEl` is the clef symbol the legend sits beside — the parked one, on a
+	 * trainer staff. Left out, the staff's own first clef symbol is used; with
+	 * no clef on the staff at all there is no legend. The rules and bands run
+	 * the full width either way, across the clef as they always have.
+	 *
+	 * `opts` is for a musically continuous pair of staves, whose boxes overlap
+	 * and would otherwise each mark the same positions twice:
+	 *   gapBelow  — on the upper staff: how many positions the gap holds (three
+	 *               under a treble staff: D4, middle C, B3). The legend and the
+	 *               markings run down through the gap and stop there.
+	 *   clipAbove — on the lower staff: draw nothing above the top line; the
+	 *               gap is the upper staff's.
+	 */
+	var renderStaffMarkers = function(staffEl, clefId, clefEl, opts){
 		$('> .htp-markers', staffEl).remove();
-		
-		if (!window.HTP || !window.HTP.settings || !window.HTP.settings.lineMarkers)
+
+		var options = window.HTP && window.HTP.settings;
+		if (!options || !clefId || !clefs[clefId])
 			return;
-		if (!clefId || !clefs[clefId])
+		var markersOn = !!options.lineMarkers;
+		var legendOn = !!(options.legendLines || options.legendSpaces);
+		if (!markersOn && !legendOn)
 			return;
-		
+
+		if (clefEl === undefined)
+			clefEl = $('> .symbol.clef', staffEl).first();
+		if (!clefEl || !clefEl.length)
+			clefEl = null;
+
+		/* Where the clef ends, in px from the staff's left edge. Measured
+		 * rather than assumed: a key signature makes the symbol wider. */
+		var fontPx = parseFloat(staffEl.css('font-size')) || 0;
+		var clefRight = clefEl ? clefEl.position().left + clefEl.outerWidth() : 0;
+		var legendLeft = clefRight + LEGEND_GAP_EM * fontPx;
+		var legendWidthEm = LEGEND_COLUMN_EM * ((options.legendLines ? 1 : 0) + (options.legendSpaces ? 1 : 0));
+		var legend = (legendOn && clefEl)
+			? $('<div class="htp-legend"></div>').css({left: legendLeft + 'px', width: legendWidthEm + 'em'})
+			: null;
+		/* With both on, the lines' letters sit in the right-hand column and the
+		 * spaces' in the left, so the eye can follow either set straight down. */
+		var linesColumnEm = options.legendSpaces ? LEGEND_COLUMN_EM : 0;
+		var gapBelow = (opts && opts.gapBelow > 0) ? opts.gapBelow : 0;
+		var legendBottom = LEGEND_SHIFT_BOTTOM - gapBelow;
+		var markerTop = (opts && opts.clipAbove) ? LEGEND_SHIFT_TOP : MARKER_SHIFT_TOP;
+		var markerBottom = gapBelow ? legendBottom : MARKER_SHIFT_BOTTOM;
+
 		var landmarks = window.HTP.landmarks;
+		var clefShift = clefs[clefId].shift;
+		var layer = $('<div class="htp-markers"></div>');
+
+		for (var shift = markerBottom; shift <= markerTop; shift++)
 		{
-			var clefShift = clefs[clefId].shift;
-			var layer = $('<div class="htp-markers"></div>');
-			
-			for (var shift = MARKER_SHIFT_BOTTOM; shift <= MARKER_SHIFT_TOP; shift++)
+			/* Diatonic step and octave of this staff position. C4 is noteShift -6,
+			 * and one octave is 7 diatonic steps. */
+			var noteShift = shift - clefShift;
+			var step = (((noteShift + 6) % 7) + 7) % 7;
+			var octave = 4 + Math.floor((noteShift + 6) / 7);
+			var onLine = shift % 2 == 0;
+
+			var landmark = null;
+			var landmarkName = null;
+			Object.keys(landmarks).forEach(function(name){
+				if (landmarks[name].step == step && window.HTP.landmarkEnabled(name))
+				{
+					landmark = landmarks[name];
+					landmarkName = name;
+				}
+			});
+
+			/* Same register shading as the keyboard: darker below middle C,
+			 * brighter above it, palette colour in the middle octave. */
+			var colour = landmark
+				? window.HTP.shade(landmark.colour, window.HTP.octaveShade(octave))
+				: null;
+
+			if (legend && shift >= legendBottom && shift <= LEGEND_SHIFT_TOP
+				&& (onLine ? options.legendLines : options.legendSpaces))
 			{
-				/* Diatonic step and octave of this staff position. C4 is noteShift -6,
-				 * and one octave is 7 diatonic steps. */
-				var noteShift = shift - clefShift;
-				var step = (((noteShift + 6) % 7) + 7) % 7;
-				var octave = 4 + Math.floor((noteShift + 6) / 7);
-				
-				var landmark = null;
-				var landmarkName = null;
-				Object.keys(landmarks).forEach(function(name){
-					if (landmarks[name].step == step && window.HTP.landmarkEnabled(name))
-					{
-						landmark = landmarks[name];
-						landmarkName = name;
-					}
-				});
-				if (!landmark)
-					continue;
-				
-				/* Same register shading as the keyboard: darker below middle C,
-				 * brighter above it, palette colour in the middle octave. */
-				var colour = window.HTP.shade(landmark.colour, window.HTP.octaveShade(octave));
-				
-				if (shift % 2 == 0)
+				/* Two elements: the slot is placed in the staff's own em, the
+				 * letter inside it is sized down. One element could not do both,
+				 * since its em would be its own shrunken size. */
+				var slot = $('<div class="htp-legend__slot"></div>')
+					.attr('data-htp-marker-shift', shift)
+					.css({top: markerTopEm(shift) + 'em', left: (onLine ? linesColumnEm : 0) + 'em'});
+				var letter = $('<span class="htp-legend__letter"></span>').text(STEP_LETTERS[step]);
+				if (landmark)
 				{
-					/* On a line: a dashed rule along it. */
-					$('<div class="htp-marker htp-marker--rule"></div>')
-						.attr('data-htp-landmark', landmarkName)
-						.attr('data-htp-marker-shift', shift)
-						.css({top: markerTopEm(shift) + 'em', color: colour})
-						.appendTo(layer);
+					slot.attr('data-htp-landmark', landmarkName);
+					if (options.colourNotes)
+						letter.css('color', colour);
 				}
-				else
-				{
-					/* In a space: a band filling it line to line. */
-					$('<div class="htp-marker htp-marker--band"></div>')
-						.attr('data-htp-landmark', landmarkName)
-						.attr('data-htp-marker-shift', shift)
-						.css({
-							top: markerTopEm(shift + 1) + 'em',
-							height: (markerTopEm(shift - 1) - markerTopEm(shift + 1)) + 'em',
-							'background-color': colour
-						})
-						.appendTo(layer);
-				}
+				legend.append(slot.append(letter));
 			}
-			
-			staffEl.prepend(layer);
+
+			if (!markersOn || !landmark)
+				continue;
+
+			if (onLine)
+			{
+				/* On a line: a dashed rule along it. */
+				$('<div class="htp-marker htp-marker--rule"></div>')
+					.attr('data-htp-landmark', landmarkName)
+					.attr('data-htp-marker-shift', shift)
+					.css({top: markerTopEm(shift) + 'em', color: colour})
+					.appendTo(layer);
+			}
+			else
+			{
+				/* In a space: a band filling it line to line. */
+				$('<div class="htp-marker htp-marker--band"></div>')
+					.attr('data-htp-landmark', landmarkName)
+					.attr('data-htp-marker-shift', shift)
+					.css({
+						top: markerTopEm(shift + 1) + 'em',
+						height: (markerTopEm(shift - 1) - markerTopEm(shift + 1)) + 'em',
+						'background-color': colour
+					})
+					.appendTo(layer);
+			}
 		}
+
+		if (legend)
+			layer.append(legend);
+		staffEl.prepend(layer);
+	};
+	/*
+	 * The trainer's own staves follow the clef that is actually parked at the
+	 * left, not the one the level has most recently chosen: a clef change
+	 * starts with the new clef scrolling in from the right, and the letters
+	 * beside the old clef must keep naming the old clef's lines until the new
+	 * one has taken its place. Before any clef has parked — after a level
+	 * change — the level's clef is all there is to go on.
+	 */
+	var shownClefOf = function(staff){
+		if (staff.shownClefEl && staff.shownClefEl.closest('body').length)
+			return {clef: staff.shownClef, el: staff.shownClefEl};
+		return {clef: staff.clef, el: null};
+	};
+	/*
+	 * Light up the key the exercise is waiting for, on the on-screen keyboard.
+	 * Optional, and off by default: it turns reading into a lookup. What it is
+	 * for is the other half of the skill — the note you see and the place your
+	 * hand goes — which is hard to practise from a screen alone.
+	 */
+	var updateKeyHint = function(){
+		if (!window.HTP || !window.HTP.keyboard || !window.HTP.keyboard.setHints)
+			return;
+		if (paused)
+			return;
+		if (!window.HTP.settings.showKeyHint)
+		{
+			window.HTP.keyboard.clearHints();
+			return;
+		}
+
+		var index = findFirstNoteIndex();
+		var target = index === null ? null : state.activeNotes[index];
+		if (!target || !target.playable || !target.notes)
+		{
+			window.HTP.keyboard.clearHints();
+			return;
+		}
+
+		var hints = {};
+		target.notes.forEach(function(n){ hints[n.sound] = {target: true}; });
+		window.HTP.keyboard.setHints(hints);
+	};
+	/* How many staff positions lie between two musically continuous staves —
+	 * three for treble over bass: D4, C4, B3 — or 0 when the staves are not
+	 * continuous. The bottom line of the upper staff is -4 and the top line of
+	 * the lower one is +4, so the gap is the clef distance less those eight
+	 * positions and the lower line itself. */
+	var gapBetween = function(upperClefId, lowerClefId){
+		if (!window.HTP || !window.HTP.settings || !window.HTP.settings.musicalClefDistance)
+			return 0;
+		if (!clefs[upperClefId] || !clefs[lowerClefId] || upperClefId == lowerClefId)
+			return 0;
+		return Math.max(0, clefs[lowerClefId].shift - clefs[upperClefId].shift - 9);
+	};
+	/* The options each staff of a pair needs from renderStaffMarkers(): the
+	 * upper one owns the gap, the lower one keeps out of it. */
+	var pairOptions = function(gap){
+		return gap > 0 ? [{gapBelow: gap}, {clipAbove: true}] : [null, null];
+	};
+	var renderTrainerMarkers = function(){
+		var shown = state.level.staffs.map(shownClefOf);
+		var pair = pairOptions(shown.length > 1 ? gapBetween(shown[0].clef, shown[1].clef) : 0);
+		state.level.staffs.forEach(function(staff, i){
+			renderStaffMarkers($('#' + staff.id), shown[i].clef, shown[i].el, pair[i]);
+		});
 	};
 	/*
 	 * Draw the five staff lines as elements at the same computed positions the
@@ -1510,10 +1734,8 @@ $(function(){
 		/* Every staff in the page, including one this level does not use — it is
 		 * still drawn, so it still needs its lines. */
 		$('.staff').each(function(){ renderStaffLines($(this)); });
-		
-		state.level.staffs.forEach(function(staff){
-			renderStaffMarkers($('#' + staff.id), staff.clef);
-		});
+
+		renderTrainerMarkers();
 		/* Let modules that render their own staves redraw theirs too. */
 		if (window.HTP && typeof window.HTP.notifyMarkersChanged === 'function')
 			window.HTP.notifyMarkersChanged();
@@ -1549,59 +1771,145 @@ $(function(){
 			$(this).toggle(inLevel && clefOn);
 		});
 	};
+	/* A staff container's padding on one side, in the staff's em. Ledger room
+	 * is set as padding, and it sits between two staff boxes exactly as their
+	 * margin does. */
+	var containerPaddingEm = function(container, side){
+		var el = $(container);
+		if (!el.length)
+			return 0;
+		var fontPx = parseFloat(el.css('font-size')) || 0;
+		return fontPx ? (parseFloat(el.css(side)) || 0) / fontPx : 0;
+	};
+	/*
+	 * How far apart two staff boxes must sit to be musically continuous,
+	 * expressed as the margin correction on the lower container.
+	 *
+	 * Two staves are one pitch space when their boxes are offset by exactly
+	 * (shiftB - shiftA) steps. Each box is 2em tall, and whatever padding the
+	 * containers carry for ledger lines — the upper one's below, the lower
+	 * one's above — lies in the gap as well, so it comes off too. Left out, an
+	 * Intermediate level's four steps of ledger room either side pushed the
+	 * bass staff eight steps too low.
+	 */
+	var staffOffsetEm = function(upperClefId, lowerClefId, upperContainer, lowerContainer){
+		if (!clefs[upperClefId] || !clefs[lowerClefId])
+			return 0;
+		return (clefs[lowerClefId].shift - clefs[upperClefId].shift) * grid.stepEm - 2
+			- containerPaddingEm(upperContainer, 'padding-bottom')
+			- containerPaddingEm(lowerContainer, 'padding-top');
+	};
 	var applyStaffSpacing = function(){
 		var containers = trainerStaffContainers();
 		containers.css('margin-top', '');
-		
+		/* Musically continuous staves overlap, and a clef's opaque backdrop
+		 * — 100em tall, clipped only by its own container — then paints
+		 * straight over the tail of the clef above it. The backdrop is there
+		 * to mask notes scrolling in behind a parked clef; in this layout that
+		 * costs less than losing half a clef, so css/htp.css drops it while
+		 * the class is on. */
+		containers.closest('.staffsContainer').removeClass('htp-continuous');
+
 		if (!window.HTP || !window.HTP.settings || !window.HTP.settings.musicalClefDistance)
 			return;
 		if (state.level.staffs.length < 2)
 			return;
-		
-		var upper = state.level.staffs[0];
-		var lower = state.level.staffs[1];
-		if (!upper.clef || !lower.clef || upper.clef == lower.clef)
+
+		/* The clefs actually parked at the left, as the markings and the
+		 * legend follow — not the level's latest pick, which is still off to
+		 * the right scrolling in. Spaced from the pick, the staves jumped to
+		 * their musical distance half a minute before the clefs arrived, and
+		 * back again if the next pick differed before these had parked. */
+		var upper = shownClefOf(state.level.staffs[0]).clef;
+		var lower = shownClefOf(state.level.staffs[1]).clef;
+		if (!upper || !lower || upper == lower)
 			return;
-		
-		var deltaShift = clefs[lower.clef].shift - clefs[upper.clef].shift;
-		containers.eq(1).css('margin-top', ((deltaShift * grid.stepEm) - 2) + 'em');
+
+		containers.eq(1).css('margin-top',
+			staffOffsetEm(upper, lower, containers.eq(0), containers.eq(1)) + 'em');
+		containers.closest('.staffsContainer').addClass('htp-continuous');
 	};
-	var setClefs = function(){
-		var clefSet = getRandomArrayEl(state.level.clefSets);
-		var key = getRandomArrayEl(state.level.keys);
-		
-		if (state.activeClefSet === clefSet && state.activeKey === key)
-			return false;
-		
-		state.activeClefSet = clefSet;
-		state.activeKey = key;
-		
-		var position = 0;
-		if (state.activeNotes.length)
-		{
-			var lastSymbol = state.activeNotes[state.activeNotes.length - 1];
-			position = lastSymbol.position + lastSymbol.width;
-		}
-		
-		state.level.staffs.forEach(function(staff){
-			staff.clef = clefSet[staff.id];
-			var clef = clefs[staff.clef];
-			var staffEl = $('#' + staff.id);
-			var startPosition = Math.max(100 * staffEl.width(), position);
-			var symbol = $('<div class="symbol clef ' + clef.id + '"></div>');
-			symbol.append(symbols.clefs[staff.clef]);
+	/*
+	 * A clef symbol, with the key signature's accidentals beside it when a
+	 * key is given. The trainer builds every clef this way; a module drawing
+	 * its own staff can ask for the same, with or without the key.
+	 */
+	var buildClefSymbol = function(clefId, key){
+		var clef = clefs[clefId];
+		if (!clef)
+			return null;
+		var symbol = $('<div class="symbol clef ' + clef.id + '"></div>');
+		symbol.append(symbols.clefs[clefId]);
+		if (key && key.lines)
 			key.lines.forEach(function(l){
 				var shift = clef.keys[key.decorator][l].shift;
 				symbol.append(placeGlyph($(symbols.decorators[key.decorator]), shift, NOTEHEAD_CENTRE_EM));
 			});
-			
-			addSymbol(staffEl, {type: symbolTypes.clef, symbol: symbol, position: startPosition, staff: staff.id});
+		return symbol;
+	};
+	/*
+	 * The clef is furniture, not traffic.
+	 *
+	 * Upstream sent each clef in from the right like a note and had it park at
+	 * the left, with a hand-off protocol deciding which of them was current and
+	 * an opaque white backdrop masking the outgoing one. That is a lot of
+	 * machinery for something that ends up in the same place every time, and
+	 * every bug in this area came out of it: two clefs on a staff at once, a
+	 * clef drawn while the pane was hidden and surfacing later, the markings
+	 * and the legend having to ask which clef was really in charge.
+	 *
+	 * So the clef is simply an element pinned to the left of the staff, and
+	 * only the notes move. Because a static clef re-clefs everything on the
+	 * staff the instant it changes, a change waits for the staff to drain —
+	 * see createNewNote().
+	 */
+	var STATIC_CLEF_LEFT_EM = 0.2;
+	/* Where the notes must stop: the right-hand edge of the parked clef, in
+	 * hundredths of a pixel. Measured when the clef is drawn rather than every
+	 * frame, so the animation loop reads a number instead of the layout. */
+	var measureClef = function(staff){
+		var el = staff.shownClefEl;
+		staff.clefRight = (el && el.length) ? (el.position().left + el.outerWidth()) : 0;
+	};
+	var measureClefs = function(){
+		state.level.staffs.forEach(measureClef);
+	};
+	var removeStaticClefs = function(){
+		Object.keys(staffs).forEach(function(id){
+			$('#' + id).children('.symbol.clef').remove();
+			staffs[id].shownClef = null;
+			staffs[id].shownClefEl = null;
+			staffs[id].clefRight = 0;
 		});
-		
+	};
+	var setClefs = function(){
+		var clefSet = getRandomArrayEl(state.level.clefSets);
+		var key = getRandomArrayEl(state.level.keys);
+
+		if (state.activeClefSet === clefSet && state.activeKey === key)
+			return false;
+
+		state.activeClefSet = clefSet;
+		state.activeKey = key;
+
+		state.level.staffs.forEach(function(staff){
+			staff.clef = clefSet[staff.id];
+			var staffEl = $('#' + staff.id);
+			staffEl.children('.symbol.clef').remove();
+			var symbol = buildClefSymbol(staff.clef, key)
+				.addClass('htp-clef-static')
+				.css({left: STATIC_CLEF_LEFT_EM + 'em'});
+			staffEl.append(symbol);
+			staff.shownClef = staff.clef;
+			staff.shownClefEl = symbol;
+		});
+
 		applyStaffSpacing();
 		applyStaffVisibility();
+		measureClefs();
 		applyLineMarkers();
-		
+		updateKeyHint();
+
 		return true;
 	};
 	var getNumberOfAdditionalLines = function(shift){
@@ -1618,15 +1926,32 @@ $(function(){
 	};
 	var createNewNote = function(){
 		state.newNoteHandler = setTimeout(createNewNote, state.newNoteInterval);
-		
+
+		/* Hidden: keep the clock ticking, create nothing. */
+		if (paused)
+			return;
 		if (state.activeNotes.length > 50)
 			return;
 		
 		state.noteIndex--;
 		if (state.noteIndex < 0)
 			state.noteIndex = settings.notesPerClef;
-		if (state.noteIndex == settings.notesPerClef && setClefs())
-			return;
+		if (state.noteIndex == settings.notesPerClef)
+			state.clefChangeDue = true;
+		/*
+		 * A static clef re-clefs the whole staff the instant it changes, so it
+		 * waits until nothing is left that was read in the old clef. The clock
+		 * keeps ticking, so the change lands as soon as the staff drains —
+		 * usually the next note or two.
+		 */
+		if (state.clefChangeDue)
+		{
+			if (state.activeNotes.length || pendingSymbols)
+				return;
+			state.clefChangeDue = false;
+			if (setClefs())
+				return;
+		}
 
 		var staff = getRandomArrayEl(state.level.staffs);
 		var clef = clefs[staff.clef];
@@ -1662,47 +1987,31 @@ $(function(){
 		addAdditionalLines(symbol, numberOfAdditionalBottomLines);
 		addSymbol(staffEl, activeNote);
 	};
+	/*
+	 * How fast the notes travel, as a percentage of the original speed. The
+	 * original's 70 hundredths of a pixel every 20ms is 35px/s, which is one
+	 * pace for every player and every level; this is the Speed control in the
+	 * options bar.
+	 */
+	var scrollStep = function(){
+		var percent = (window.HTP && window.HTP.settings)
+			? window.HTP.settings.scrollSpeed : 100;
+		if (!percent || !isFinite(percent))
+			percent = 100;
+		return settings.animationStep * percent / 100;
+	};
 	setInterval(function() {
-		var borderLine = null;
+		if (paused)
+			return;
 		var staffWidth = 100 * $('#' + state.level.staffs[0].id).width();
-		if (state.activeNotes.length)
-		{
-			var clefSymbol = state.activeNotes[0];
-			borderLine = clefSymbol.position + clefSymbol.width;
-		}
+		var step = scrollStep();
 		var firstNote = false;
 		for (var i = 0; i < state.activeNotes.length; i++)
 		{
 			var note = state.activeNotes[i];
 			var symbol = note.symbol;
 			note.time += settings.animationInterval;
-			if (note.type == symbolTypes.clef)
-			{
-				if (!note.main)
-				{
-					for(var j = 0; j < i; j++)
-					{
-						var tmpNote = state.activeNotes[j];
-						if (tmpNote.type != symbolTypes.clef
-							|| note.staff != tmpNote.staff)
-						{
-							continue;
-						}
-						if (tmpNote.animate
-							|| tmpNote.position + tmpNote.width < note.position)
-						{
-							break;
-						}
-					
-						note.main = true;
-						tmpNote.main = false;
-						tmpNote.animate = true;
-					}
-				}
-				if (note.position <= 0 && !note.animate)
-					continue;
-			}
-			else if (note.type == symbolTypes.note && !firstNote)
+			if (!firstNote)
 			{
 				firstNote = true;
 				if (!note.isVisible && note.position + note.width <= staffWidth)
@@ -1711,29 +2020,18 @@ $(function(){
 					note.playable = true;
 					note.time = 0;
 					note.symbol.addClass('visible');
-					
-					/*note.notes.forEach(function(n){
-						state.midiMessages.push({command: [0x90, n.sound, 0x50]});
-						state.midiMessages.push({command: [0x90, n.sound, 0x00], timeOffset: 1000});
-					});*/
+					updateKeyHint();
 				}
-				
 			}
-			note.position -= settings.animationStep;
+			note.position -= step;
 			symbol.css({left: Math.round(note.position / 100)+'px'});
-			if (note.type == symbolTypes.clef)
-			{
-				if (note.position < -note.width)
-				{
-					removeSymbolsSet(i);
-					i--;
-				}
-			}
-			else if (borderLine !== null && note.position < borderLine - note.width)
+			/* Reached the clef without being played: a miss. */
+			var borderLine = 100 * (staffs[note.staff] ? staffs[note.staff].clefRight : 0);
+			if (note.position < borderLine - note.width)
 			{
 				state.newNoteInterval = settings.newNoteInterval;
 				removeAllNotes();
-				return;				
+				return;
 			}
 		}
 	}, settings.animationInterval);
@@ -1786,27 +2084,41 @@ $(function(){
 	var playedGhosts = {};   /* midi note -> the elements drawn for it */
 	var heldSounds = {};     /* midi note -> true while the key is down */
 	var heldOrder = [];      /* the same notes, in the order they went down */
+	/*
+	 * The note you played, drawn at a fixed place in the middle of the staff
+	 * rather than on top of the note you were asked for.
+	 *
+	 * It reads as a shot fired from one position at the notes coming towards
+	 * you: your note appears where it belongs in pitch, the target keeps
+	 * moving, and a hit takes the target away. Drawn over the target instead,
+	 * the two noteheads sat on top of each other at whatever point the target
+	 * had reached, which said the same thing far less clearly — and a target
+	 * still at the right-hand edge put the feedback out at the edge with it.
+	 *
+	 * The interval you missed by is still there to read: both noteheads are on
+	 * the same staff at the same moment, one yours and one the exercise's.
+	 */
 	var showPlayedNote = function(activeNote, sound, isCorrect){
 		var staff = staffs[activeNote.staff];
 		if (!staff || !staff.clef)
 			return;
-		
+
 		var clef = clefs[staff.clef];
 		var entry = spellingForSound(sound);
 		if (!entry)
 			return;
-		
+
 		var shiftInClef = entry.clefs[clef.id].shift;
-		var added = [];
+		var symbol = $('<div class="symbol note visible htp-shot"></div>')
+			.addClass(isCorrect ? 'correct' : 'wrong');
 		var ghost = $(glyphForDecorator(entry.decorator))
 			.addClass('played')
 			.addClass(isCorrect ? 'correct' : 'wrong')
 			.attr('data-htp-shift', shiftInClef).attr('data-htp-artwork', NOTEHEAD_CENTRE_EM)
 			.css({top: glyphTopEm(shiftInClef, NOTEHEAD_CENTRE_EM) + 'em'});
 		applyStems(ghost);
-		activeNote.symbol.append(ghost);
-		added.push(ghost);
-		
+		symbol.append(ghost);
+
 		/* Ledger lines, so a note just outside the staff is still readable. Capped,
 		 * because a note several octaves off would otherwise fill the staff with
 		 * lines and hide the target. */
@@ -1817,21 +2129,19 @@ $(function(){
 		{
 			var sign = extra > 0 ? 1 : -1;
 			for (var i = Math.abs(extra) + 2; i >= 3; i--)
-			{
-				var lineEl = $(symbols.line)
+				symbol.append($(symbols.line)
 					.addClass('line played')
 					.addClass(isCorrect ? 'correct' : 'wrong')
 					.attr('data-htp-shift', sign * 2 * i).attr('data-htp-artwork', LINE_CENTRE_EM)
-					.css({top: glyphTopEm(sign * 2 * i, LINE_CENTRE_EM) + 'em'});
-				activeNote.symbol.append(lineEl);
-				added.push(lineEl);
-			}
+					.css({top: glyphTopEm(sign * 2 * i, LINE_CENTRE_EM) + 'em'}));
 		}
-		
-		/* The ghost stays for exactly as long as the key is held — hidePlayedNote()
-		 * takes it away on note-off. */
+
+		$('#' + staff.id).append(symbol);
+
+		/* The shot stays for exactly as long as the key is held —
+		 * hidePlayedNote() takes it away on note-off. */
 		hidePlayedNote(sound);
-		playedGhosts[sound] = added;
+		playedGhosts[sound] = [symbol];
 	};
 	var hidePlayedNote = function(sound){
 		if (!playedGhosts[sound])
@@ -2155,18 +2465,31 @@ $(function(){
 		var entry = spellingForSound(sound, preference);
 		if (!entry || !clefs[clefId])
 			return null;
-		
+		return buildGlyphForEntry(clefId, entry, glyphForDecorator(entry.decorator));
+	};
+	/*
+	 * A notehead for an entry the trainer's own picker returned — see
+	 * getNotesForClef(). Drawn exactly as the trainer draws it: the entry's
+	 * decorator is already the accidental the key signature leaves to print,
+	 * so a natural is a natural sign here, not a bare head.
+	 */
+	var buildEntryGlyph = function(clefId, entry){
+		if (!entry || !entry.clefs || !entry.clefs[clefId] || !clefs[clefId])
+			return null;
+		return buildGlyphForEntry(clefId, entry, symbols.notes[entry.decorator] || symbols.notes.none);
+	};
+	var buildGlyphForEntry = function(clefId, entry, markup){
 		var shiftInClef = entry.clefs[clefId].shift;
-		var glyph = placeGlyph($(glyphForDecorator(entry.decorator)), shiftInClef, NOTEHEAD_CENTRE_EM);
-		
-		var colour = landmarkColourForSound(sound);
+		var glyph = placeGlyph($(markup), shiftInClef, NOTEHEAD_CENTRE_EM);
+
+		var colour = landmarkColourForSound(entry.sound);
 		if (colour)
 			glyph.css('fill', colour);
-		
+
 		/* One note, so it stems on its own. A module drawing several as one
 		 * chord calls HTP.notation.applyStems over the group afterwards. */
 		applyStems(glyph);
-		
+
 		return {glyph: glyph, shift: shiftInClef, entry: entry};
 	};
 	
@@ -2238,6 +2561,8 @@ $(function(){
 			updateResults();
 
 			removeSymbolsSet(activeNoteIndex);
+			/* The target is gone, so the hint belongs to whatever is next. */
+			updateKeyHint();
 		}
 	};
 	var onMIDIFailure = function(e){
@@ -2371,7 +2696,12 @@ $(function(){
 		
 		trainerStaffContainers().css({'padding-top': paddingTop+'em', 'padding-bottom': paddingBottom+'em'});
 		applyStaffVisibility();
-		
+
+		/* The clef belongs to the level that chose it: its key signature, and
+		 * possibly its staff, are about to be wrong. createNewNote() draws the
+		 * new one as its first act. */
+		removeStaticClefs();
+		state.clefChangeDue = true;
 		removeAllNotes();
 		updateResults();
 		createNewNote();
@@ -2393,6 +2723,38 @@ $(function(){
 		window.HTP.applyNoteShape = applyNoteShape;
 		window.HTP.applyStaffVisibility = applyStaffVisibility;
 		window.HTP.relayoutForGrid = relayoutForGrid;
+		/* The trainer only runs while its pane is showing; the module's
+		 * onShow / onHide hooks in js/modules/note-trainer.js drive these. */
+		window.HTP.pauseTrainer = pauseTrainer;
+		window.HTP.resumeTrainer = resumeTrainer;
+		/*
+		 * A read-only look at the trainer's state, which is otherwise sealed
+		 * inside this closure. Everything here is measured rather than
+		 * guessed, and a stalled exercise has several possible causes that
+		 * look identical from the outside — paused, waiting for the staff to
+		 * drain, or a spawn interval that has run away.
+		 */
+		window.HTP.trainerDiagnostics = function(){
+			return {
+				paused: paused,
+				clefChangeDue: !!state.clefChangeDue,
+				activeNotes: state.activeNotes.length,
+				pendingSymbols: pendingSymbols,
+				noteIndex: state.noteIndex,
+				newNoteInterval: state.newNoteInterval,
+				scrollStep: scrollStep(),
+				activeKey: state.activeKey ? state.activeKey.decorator : null,
+				staffs: state.level.staffs.map(function(staff){
+					return {id: staff.id, clef: staff.clef, shownClef: staff.shownClef,
+						clefRight: staff.clefRight, width: $('#' + staff.id).width()};
+				})
+			};
+		};
+		/* The key hint follows a setting that any pane may turn on. */
+		window.HTP.onSettingChange(function(key){
+			if (key === 'showKeyHint')
+				updateKeyHint();
+		});
 		
 		/*
 		 * Notation primitives for modules that draw their own staves — see
@@ -2412,23 +2774,39 @@ $(function(){
 			symbols: symbols,
 			/* How far apart two staff boxes must sit to be musically continuous,
 			 * expressed as the margin correction on the lower one. */
-			staffOffsetEm: function(upperClefId, lowerClefId){
-				if (!clefs[upperClefId] || !clefs[lowerClefId])
-					return 0;
-				return (clefs[lowerClefId].shift - clefs[upperClefId].shift) * grid.stepEm - 2;
-			},
+			/* Pass the two .staffContainer elements as well: any ledger room they
+			 * carry as padding lies in the gap and is taken off. */
+			staffOffsetEm: staffOffsetEm,
 			buildNoteGlyph: buildNoteGlyph,
+			/* A notehead for an entry pickNotes() returned, drawn as the trainer
+			 * would draw it. */
+			buildEntryGlyph: buildEntryGlyph,
 			/* Spelling preferences a caller may pass to buildNoteGlyph. */
 			decorators: decorators,
 			roomForShiftsEm: roomForShiftsEm,
 			/* Give a set of noteheads one shared stem direction. Hand it every
 			 * head of a chord at once; a lone note can stem itself. */
 			applyStems: applyStems,
-			buildClefSymbol: function(clefId){
-				if (!clefs[clefId])
-					return null;
-				return $('<div class="symbol clef ' + clefId + '"></div>')
-					.append(symbols.clefs[clefId]);
+			/* The clef, and with a key the key signature beside it. */
+			buildClefSymbol: buildClefSymbol,
+			/*
+			 * The trainer's difficulty levels, keyed as the level menu is, in
+			 * menu order. Each names its staves, its clef sets and keys, its
+			 * note range and which accidentals it allows. Read-only.
+			 */
+			levels: levels,
+			/* Staff positions between two musically continuous staves, 0 when
+			 * they are not continuous — and the renderStaffMarkers() options
+			 * for each staff of the pair, [upper, lower], for that gap. */
+			gapBetween: gapBetween,
+			pairOptions: pairOptions,
+			/* The notes for one prompt of a level in one clef, spelled against
+			 * a key of that level — the trainer's own picker, for a module that
+			 * asks the same questions on its own terms. */
+			pickNotes: function(level, clefId, key){
+				if (!level || !clefs[clefId] || !key)
+					return [];
+				return getNotesForClef(clefId, level, key);
 			},
 			addLedgerLines: addAdditionalLines,
 			ledgerLineCount: getNumberOfAdditionalLines,

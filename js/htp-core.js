@@ -421,7 +421,19 @@ window.HTP = (function (window, document) {
 		/* Which landmarks are drawn, on the staff and on the keys alike. */
 		landmarkC: true,
 		landmarkF: true,
-		landmarkG: true
+		landmarkG: true,
+		/* The legend beside the clef: the letter of each line, and of each
+		 * space. Off by default, like every other staff decoration. */
+		legendLines: false,
+		legendSpaces: false,
+		/* Light up the key the exercise is waiting for, on the on-screen
+		 * keyboard. Off by default: it turns reading into a lookup. It is for
+		 * the other half of the skill — the note you see and where your hand
+		 * goes — which is hard to practise from a screen alone. */
+		showKeyHint: false,
+		/* How fast the note trainer's notes travel, as a percentage of the
+		 * original 35px/s. */
+		scrollSpeed: 100
 	};
 
 	/* Landmark palette, taken from the piano-roll project's "lesson" theme.
