@@ -128,6 +128,9 @@ body:not(.htp-multi-module) .htp-tabbar { display: none; }
    Inside a pane, with extra option checkboxes below them, they are better in
    normal flow — then they can never overlap the staff. */
 div.buttonsContainer { position: static; padding: 0.75em 1em 0; }
+/* The results and help buttons are hidden for now. Bootstrap's .btn-group
+   sets display, which outranks the UA sheet's [hidden]. */
+div.buttonsContainer .btn-group[hidden] { display: none; }
 /* The whole staff — clefs, noteheads, markers, spacing — is sized in em off
    this one value, so changing it zooms the notation as a unit. Set from
    js/htp-panes.js; browser zoom still applies on top of it.
@@ -418,8 +421,10 @@ div.shareContainer { position: static; }
 	top: 0;
 	bottom: 0;
 	/* Above the clef's opaque background (10) so the rules and bands carry across
-	   it, but below the staff lines (100). The staff lines already draw over
-	   noteheads in this design, so markers crossing a notehead is consistent. */
+	   it — under it, the clef's white box shows as a hole in the bands, and an
+	   arriving clef as a white slab sliding over them — but below the staff
+	   lines (100). The staff lines already draw over noteheads in this design,
+	   so markers crossing a notehead is consistent. */
 	z-index: 11;
 	pointer-events: none;
 	overflow: hidden;
@@ -427,21 +432,49 @@ div.shareContainer { position: static; }
 
 .htp-marker { position: absolute; left: 0; right: 0; }
 
-/* Dash pattern and weight follow the piano-roll renderer: a 2.6mm dash with a
-   2.2mm gap, drawn about 1.9x the weight of a staff line. */
-.htp-marker--rule {
-	height: 2px;
-	/* Same as a staff line, doubled: a 2px box anchored at markerTopEm has its
-	   ink centre a full pixel below the coordinate it is meant to trace. */
-	margin-top: -1px;
-	background-image: repeating-linear-gradient(
-		to right,
-		currentColor 0, currentColor 6px,
-		transparent 6px, transparent 11px
-	);
+/* The legend: the letter of each line and space, beside the clef. Drawn into
+   the marker layer by renderStaffMarkers() in js/code.js, which places each
+   slot in the staff's own em; only the letter inside is sized down, so the
+   slot's `top` still means what markerTopEm() meant. The letters sit over the
+   rules and bands, so each carries a small white halo that keeps a dashed rule
+   from cutting through it. */
+.htp-legend { position: absolute; top: 0; bottom: 0; pointer-events: none; }
+.htp-legend__slot { position: absolute; left: 0; right: 0; height: 0; }
+.htp-legend__letter {
+	position: absolute;
+	left: 0;
+	top: 0;
+	transform: translateY(-50%);
+	font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+	font-size: 0.19em;
+	font-weight: 700;
+	line-height: 1;
+	color: #8c8c8c;
+	white-space: nowrap;
+	text-shadow: 0 0 2px #fff, 0 0 2px #fff, 0 0 3px #fff;
 }
 
-.htp-marker--band { opacity: 0.16; }
+/* Dash pattern and weight follow the piano-roll renderer: a 2.6mm dash with a
+   2.2mm gap, drawn about 1.9x the weight of a staff line.
+
+   Both kinds are drawn lighter than they were: at full strength three rules
+   and three bands on a five-line staff read as a second staff laid over the
+   first, and the notes had to compete with them. They are guides — under the
+   notation, not level with it. */
+.htp-marker--rule {
+	height: 3px;
+	/* A box anchored at markerTopEm paints DOWNWARD, so its ink centre is half
+	   its own weight below the coordinate it is meant to trace. */
+	margin-top: -1.5px;
+	background-image: repeating-linear-gradient(
+		to right,
+		currentColor 0, currentColor 9px,
+		transparent 9px, transparent 15px
+	);
+	opacity: 0.6;
+}
+
+.htp-marker--band { opacity: 0.1; }
 
 /* Landmark keys on the on-screen keyboard, tinted to match. */
 .htp-key--white.is-landmark::after {
@@ -515,7 +548,13 @@ div.staff div.symbol.note svg.played.correct { --htp-played-colour: #1e9e5a; }
    masks notes — and an outgoing clef — as they scroll behind it. Making it
    transparent showed two clefs overlapping during a clef change. The landmark
    layer is lifted above it instead (see .htp-markers), so the rules and bands
-   still read across the clef. */
+   still read across the clef.
+
+   Except when the trainer's two staves are musically continuous. Their
+   containers then overlap, and the lower clef's backdrop — 100em tall, clipped
+   only by its own container — painted straight over the tail of the treble
+   clef above it. js/code.js sets the class from applyStaffSpacing(). */
+div.staffsContainer.htp-continuous div.staff div.symbol.clef { background: transparent; }
 
 /* ------------------------------------------------------------ free practice */
 
@@ -559,7 +598,8 @@ div.staff div.symbol.note svg.played.correct { --htp-played-colour: #1e9e5a; }
  *
  * Verified in the browser: notehead centre lands within a pixel of staff centre.
  */
-div.staff div.symbol.note.htp-free-note {
+div.staff div.symbol.note.htp-free-note,
+div.staff div.symbol.note.htp-fc-note {
 	width: 2.4em;
 	left: calc(50% - 2.268em);
 	overflow: visible;
@@ -576,7 +616,8 @@ div.staff div.symbol.note.htp-free-note {
  * notehead's centre sits 0.232em in from the box's right edge, so a line of
  * twice that width, right-aligned, shares the same centre.
  */
-div.staff div.symbol.note.htp-free-note svg.line {
+div.staff div.symbol.note.htp-free-note svg.line,
+div.staff div.symbol.note.htp-fc-note svg.line {
 	left: auto;
 	right: 0;
 	width: 0.464em;
@@ -590,7 +631,8 @@ div.staff div.symbol.note.htp-free-note svg.line {
  * sits flush against the right edge, where clipping shaves its last pixel and
  * the note reads as cropped.
  */
-div.staff div.symbol.note.htp-free-note {
+div.staff div.symbol.note.htp-free-note,
+div.staff div.symbol.note.htp-fc-note {
 	overflow: visible;
 }
 
@@ -875,12 +917,12 @@ div.staff div.symbol.note.htp-pp-note--correct svg .htp-stem { fill: #1e9e5a; }
    the staff still reads as the same staff from one item to the next.
 
    Per kind, because the two do not start from the same place: a rule is drawn at
-   full opacity and a band at 0.16. One shared retired value either leaves the
-   band exactly as visible as it was (0.16 -> 0.12 is no change the eye can see)
-   or drops the rule off a cliff. Retiring each to about a fifth of its own
-   baseline keeps the two reading as the same gesture. */
-.htp-pp-marker--retired.htp-marker--rule { opacity: 0.22; }
-.htp-pp-marker--retired.htp-marker--band { opacity: 0.04; }
+   0.55 and a band at 0.1. One shared retired value either leaves the band
+   exactly as visible as it was or drops the rule off a cliff. Retiring each to
+   about a fifth of its own baseline keeps the two reading as the same gesture. */
+.htp-pp-marker--retired.htp-marker--rule { opacity: 0.12; }
+.htp-pp-marker--retired.htp-marker--band { opacity: 0.025; }
+.htp-pp-marker--retired.htp-legend__slot { opacity: 0.25; }
 
 /* `hidden` must actually hide.
  *
@@ -951,8 +993,9 @@ div.staff div.symbol.note.htp-pp-note--correct svg .htp-stem { fill: #1e9e5a; }
 
 /* Blanking the printed key names is what makes a by-name prompt an honest test
    for someone with no piano attached — otherwise the keyboard is the answer
-   key. It leaves the keys themselves alone. */
-body.htp-pp-nolabels .htp-key__label { visibility: hidden; }
+   key. It leaves the keys themselves alone. One class, shared by the practice
+   path and the flash cards. */
+body.htp-nolabels .htp-key__label { visibility: hidden; }
 
 @media (max-width: 720px) {
 	.htp-pp { padding: 0.6em 0.7em 0; }
@@ -1356,3 +1399,163 @@ div.staff div.symbol.note.htp-scale-note svg.line { right: auto; }
 @media (max-width: 720px) {
 	.htp-fnkey { font-size: 9px; height: 18px; }
 }
+
+/* ------------------------------------------------------------- flash cards */
+
+/* Same column as the practice path: header, prompt, feedback and footer share
+   one measure instead of being marooned at the edges of a wide pane. */
+.htp-fc {
+	display: flex;
+	flex-direction: column;
+	/* At least the pane, so a short card is centred in it; taller when the
+	   staff and its ledger room need more, so the pane scrolls rather than
+	   the feedback line printing over the staff. */
+	min-height: 100%;
+	width: 100%;
+	max-width: 920px;
+	margin: 0 auto;
+	padding: 0.8em 1.2em 0;
+	gap: 0.6em;
+}
+/* `hidden` must actually hide — see the practice path for why. */
+.htp-fc [hidden] { display: none !important; }
+
+.htp-fc__head {
+	display: flex;
+	align-items: center;
+	gap: 1.2em;
+	flex-wrap: wrap;
+	font-size: 13px;
+	color: var(--htp-muted);
+}
+.htp-fc__field { display: flex; align-items: center; gap: 0.5em; margin: 0; font-weight: 400; }
+.htp-fc__label {
+	font-size: 12px;
+	letter-spacing: 0.09em;
+	text-transform: uppercase;
+}
+.htp-fc__level, .htp-fc__mode {
+	font-size: 14px;
+	font-weight: 600;
+	color: var(--htp-ink);
+	background: #fff;
+	border: 1px solid var(--htp-border);
+	border-radius: 4px;
+	padding: 0.25em 0.5em;
+	cursor: pointer;
+}
+.htp-fc__level:hover, .htp-fc__mode:hover { border-color: var(--htp-accent); }
+.htp-fc__stats { margin-left: auto; display: flex; gap: 1.1em; font-size: 12px; white-space: nowrap; }
+
+/* The prompt takes the room that is going, so the card sits in the middle of
+   the pane rather than crowding the header. */
+.htp-fc__prompt {
+	flex: 1 0 auto;
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+}
+.htp-fc__staves { margin: 0 auto; width: 100%; }
+/* Nothing scrolls and the clef never changes under a card, so the clef's
+   opaque band has nothing to mask — and left on, it paints through the pane. */
+.htp-fc div.staff div.symbol.clef { background: transparent; }
+
+.htp-fc__name { text-align: center; display: flex; flex-direction: column; gap: 0.3em; }
+.htp-fc__nameval {
+	font-size: 64px;
+	font-weight: 600;
+	line-height: 1;
+	color: var(--htp-ink);
+	letter-spacing: 0.01em;
+}
+.htp-fc__nameval.is-correct { color: #1e9e5a; }
+.htp-fc__namehint { font-size: 13px; color: var(--htp-muted); }
+
+.htp-fc__feedback {
+	min-height: 3em;
+	text-align: center;
+	font-size: 15px;
+	color: var(--htp-muted);
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+}
+.htp-fc__feedback--good { color: #1e9e5a; font-weight: 600; }
+.htp-fc__feedback--bad { color: #c0392b; }
+.htp-fc__feedback small { font-weight: 400; color: var(--htp-muted); margin-left: 0.4em; }
+
+.htp-fc__foot {
+	display: flex;
+	align-items: center;
+	gap: 1.2em;
+	padding: 0.5em 0 0.8em;
+	border-top: 1px solid var(--htp-border);
+	font-size: 12px;
+	color: var(--htp-muted);
+	flex-wrap: wrap;
+}
+.htp-fc__opt { margin: 0; font-weight: 400; display: flex; align-items: center; gap: 0.4em; }
+.htp-fc__skip { margin-left: auto; }
+
+@media (max-width: 720px) {
+	.htp-fc { padding: 0.6em 0.7em 0; }
+	.htp-fc__nameval { font-size: 44px; }
+	.htp-fc__feedback { font-size: 14px; }
+}
+
+/* ------------------------------------------- note trainer: the static clef */
+
+/*
+ * The clef no longer travels — see setClefs() in js/code.js. It is pinned to
+ * the left of the staff and only the notes move, which is what a player
+ * actually reads: the clef is furniture, and a piece of furniture that slides
+ * in from the right every ten notes was only ever an artefact of drawing it
+ * through the same queue as the notes.
+ */
+div.staff div.symbol.clef.htp-clef-static { z-index: 10; }
+
+/* -------------------------------------- note trainer: the notes you play */
+
+/*
+ * What you played, drawn at one fixed place in the middle of the staff while
+ * the note you were asked for keeps coming towards you. A hit takes the target
+ * away; a miss leaves both on the staff at once, so the interval you were out
+ * by is there to read.
+ *
+ * Centred exactly as a free-practice note is — every glyph right-aligns its
+ * notehead inside the symbol box, so the head lands on 50% whatever the
+ * spelling. See the free-practice rule for the arithmetic.
+ */
+div.staff div.symbol.note.htp-shot {
+	width: 2.4em;
+	left: calc(50% - 2.268em);
+	overflow: visible;
+	opacity: 1;
+	z-index: 6;              /* over an incoming note, under the clef */
+	background: transparent;
+}
+
+div.staff div.symbol.note.htp-shot svg.line {
+	left: auto;
+	right: 0;
+	width: 0.464em;
+}
+
+/* The notes coming towards you sit back a little, so the note you play reads
+   as the one in front. */
+.htp-pane[data-module="note-trainer"] div.staff div.symbol.note.visible:not(.htp-shot) {
+	opacity: 0.75;
+}
+
+/* ------------------------------------------------ the key you must play */
+
+/*
+ * "Show key": the key the exercise is waiting for, lit on the on-screen
+ * keyboard. Deliberately louder than the scale hint next to it — a hint groups
+ * keys, this names one — and a different hue from the pressed-key blue, so
+ * "the key to find" and "the key under your finger" never read as each other.
+ */
+.htp-key--white.is-target { background: #ffe08a; }
+.htp-key--black.is-target { background: #b8860b; }
+.htp-key--white.is-target.is-active { background: #f0b429; }
+.htp-key--black.is-target.is-active { background: #8a6508; }

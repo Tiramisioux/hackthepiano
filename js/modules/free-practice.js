@@ -86,20 +86,29 @@
 	/* Follow the same options the trainer honours. */
 	function applyOptions() {
 		var active = activeClefs();
+		/* With both staves up and musically spaced, the gap between them is
+		 * real staff positions and the treble legend runs on down through it. */
+		var pair = notation().pairOptions(active.length === 2 ? notation().gapBetween(CLEF_IDS[0], CLEF_IDS[1]) : 0);
 
-		CLEF_IDS.forEach(function (clefId) {
+		CLEF_IDS.forEach(function (clefId, i) {
 			var container = staves[clefId].closest('.staffContainer');
 			var on = active.indexOf(clefId) !== -1;
 			container.toggle(on);
-			if (on) notation().renderStaffMarkers(staves[clefId], clefId);
+			if (on) notation().renderStaffMarkers(staves[clefId], clefId, undefined, pair[i]);
 		});
+		applySpacing();
+	}
 
-		/* Only meaningful with both staves up — the offset is the distance
-		 * between them. */
+	/* Only meaningful with both staves up — the offset is the distance between
+	 * them. Re-applied after every render, because the room made for a note
+	 * outside the staff is padding, and padding lies in the gap. */
+	function applySpacing() {
+		var active = activeClefs();
+		var upper = staves[CLEF_IDS[0]].closest('.staffContainer');
 		var lower = staves[CLEF_IDS[1]].closest('.staffContainer');
 		lower.css('margin-top',
 			(window.HTP.settings.musicalClefDistance && active.length === 2)
-				? notation().staffOffsetEm(CLEF_IDS[0], CLEF_IDS[1]) + 'em'
+				? notation().staffOffsetEm(CLEF_IDS[0], CLEF_IDS[1], upper, lower) + 'em'
 				: '');
 	}
 
@@ -116,6 +125,7 @@
 		});
 
 		if (!group || !group.sounds.length) {
+			applySpacing();
 			updateReadout(null);
 			return;
 		}
@@ -169,6 +179,7 @@
 			makeRoomFor(container, highest, lowest);
 		});
 
+		applySpacing();
 		updateReadout(group);
 	}
 

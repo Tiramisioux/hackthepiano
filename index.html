@@ -81,11 +81,20 @@
   	   		<label title="Play a piano tone for whatever you play — the on-screen keys, the computer keyboard, or a connected piano">
   	   			<input type="checkbox" id="optPianoSound"> Sound
   	   		</label>
+  	   		<label title="Light up the key you are being asked for on the on-screen keyboard, so you can practise the link between the note you read and where your hand goes">
+  	   			<input type="checkbox" id="optShowKeyHint"> Show key
+  	   		</label>
   	   		<span class="htp-options__group">
   	   			<span class="htp-options__grouplabel">Staff</span>
   	   			<button type="button" class="htp-keyboard__btn" id="optStaffSmaller" title="Smaller staff">&minus;</button>
   	   			<span class="htp-options__value" id="optStaffSize">50</span>
   	   			<button type="button" class="htp-keyboard__btn" id="optStaffBigger" title="Larger staff">+</button>
+  	   		</span>
+  	   		<span class="htp-options__group">
+  	   			<span class="htp-options__grouplabel">Speed</span>
+  	   			<button type="button" class="htp-keyboard__btn" id="optSpeedSlower" title="Slower notes">&minus;</button>
+  	   			<span class="htp-options__value" id="optSpeedValue">100%</span>
+  	   			<button type="button" class="htp-keyboard__btn" id="optSpeedFaster" title="Faster notes">+</button>
   	   		</span>
   	   		<span class="htp-options__group">
   	   			<span class="htp-options__grouplabel">Clefs</span>
@@ -98,6 +107,11 @@
   	   			<label title="Show the F landmarks on the staff and on the keys"><input type="checkbox" id="optLandmarkF"> F</label>
   	   			<label title="Show the G landmarks on the staff and on the keys"><input type="checkbox" id="optLandmarkG"> G</label>
   	   		</span>
+  	   		<span class="htp-options__group">
+  	   			<span class="htp-options__grouplabel">Legend</span>
+  	   			<label title="Print the letter of each staff line in small type beside the clef — E G B D F on a treble staff"><input type="checkbox" id="optLegendLines"> Lines</label>
+  	   			<label title="Print the letter of each space in small type beside the clef — F A C E on a treble staff"><input type="checkbox" id="optLegendSpaces"> Spaces</label>
+  	   		</span>
   	   	</div>
   		</div>
 
@@ -107,7 +121,9 @@
   			     DOM ready. See js/modules/note-trainer.js. -->
   			<section class="htp-pane" data-module="note-trainer" role="tabpanel" aria-label="Note trainer">
 			   	<div class="buttonsContainer">
-			   		<div class="btn-group" role="group" aria-label="...">
+			   		<!-- Hidden for now, not removed: the results and help modals
+			   		     below are still wired to these and will come back. -->
+			   		<div class="btn-group" role="group" aria-label="..." hidden>
 				   		<a class="btn btn-primary" href="#" role="button" data-toggle="modal" data-target="#results">Your results</a>
 				   		<a class="btn btn-info" href="#" role="button" data-toggle="modal" data-target="#help">Help</a>
 				   	</div>
@@ -196,6 +212,7 @@
     <script src="css/bootstrap-3.3.7/js/bootstrap.min.js"></script>
     <script src="js/code.js" type="text/javascript"></script>
     <script src="js/modules/note-trainer.js" type="text/javascript"></script>
+    <script src="js/modules/flash-cards.js" type="text/javascript"></script>
     <script src="js/modules/practice-path.js" type="text/javascript"></script>
     <script src="js/modules/scales.js" type="text/javascript"></script>
     <script src="js/modules/free-practice.js" type="text/javascript"></script>

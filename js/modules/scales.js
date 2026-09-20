@@ -330,6 +330,21 @@
 	 * than transcribed need this — the four taken from pianoscales.org carry their
 	 * own names and spell cleanly already.
 	 */
+	/*
+	 * Put every group's roots in the same order, C first.
+	 *
+	 * pianoscales.org lists the minor scales from A, being the relative minor of
+	 * C, and the major ones from C. Carried over as-is, that meant changing group
+	 * also changed the root: C major became A minor pentatonic. Same order
+	 * everywhere, so the menus line up and the default is always the C-rooted
+	 * one.
+	 */
+	function orderRoots() {
+		GROUPS.forEach(function (group) {
+			group.scales.sort(function (a, b) { return a.pc - b.pc; });
+		});
+	}
+
 	function resolveSpellings() {
 		GROUPS.forEach(function (group) {
 			if (!group.derived) return;
@@ -579,9 +594,10 @@
 		staff.find('.symbol').remove();
 		staff.find('.htp-markers').remove();
 
-		notation().renderStaffMarkers(staff, clefId);
+		/* Clef first: the markings and the legend are placed beside it. */
 		var clef = notation().buildClefSymbol(clefId);
 		if (clef) staff.append(clef.css({ left: '0.2em' }));
+		notation().renderStaffMarkers(staff, clefId);
 
 		var shifts = [];
 		var step = (LAST_PCT - FIRST_PCT) / (notes.length - 1);
@@ -672,7 +688,15 @@
 	/* Repopulate the scale menu for a group, keeping whatever was last chosen
 	 * inside it — the twelve roots of one group have nothing to do with the
 	 * twelve of another, so each remembers its own. */
-	function fillScales(groupIndex) {
+	/*
+	 * Repopulate the scale menu for a group, staying on the same ROOT.
+	 *
+	 * Changing group is a change of scale type, not of key: if you are looking at
+	 * C major and ask for the minor pentatonic, you want C minor pentatonic. Only
+	 * when the root is carried over does the pair of menus read as two
+	 * independent choices rather than one that resets the other.
+	 */
+	function fillScales(groupIndex, keepPc) {
 		var group = GROUPS[groupIndex];
 		selectEl.innerHTML = '';
 		group.scales.forEach(function (scale, i) {
@@ -681,7 +705,13 @@
 			option.textContent = scale.name;
 			selectEl.appendChild(option);
 		});
-		selectEl.value = String(chosenIndex(groupIndex));
+
+		var index = -1;
+		if (keepPc !== undefined && keepPc !== null)
+			group.scales.forEach(function (scale, i) {
+				if (scale.pc === keepPc && index < 0) index = i;
+			});
+		selectEl.value = String(index >= 0 ? index : chosenIndex(groupIndex));
 	}
 
 	/*
@@ -1308,6 +1338,7 @@
 				show();
 			});
 
+			orderRoots();
 			resolveSpellings();   /* before any menu reads a scale's name */
 
 			GROUPS.forEach(function (group, i) {
@@ -1320,7 +1351,7 @@
 			fillScales(chosenGroup());
 
 			groupEl.addEventListener('change', function () {
-				fillScales(parseInt(groupEl.value, 10));
+				fillScales(parseInt(groupEl.value, 10), current ? current.pc : null);
 				show();
 				groupEl.blur();
 			});
