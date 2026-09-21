@@ -556,6 +556,26 @@ div.staff div.symbol.note svg.played.correct { --htp-played-colour: #1e9e5a; }
    clef above it. js/code.js sets the class from applyStaffSpacing(). */
 div.staffsContainer.htp-continuous div.staff div.symbol.clef { background: transparent; }
 
+/* A staff the exercise has nothing to put on right now — this clef set does
+   not use it, or its Treble/Bass switch is off — but it is still drawn,
+   faint, rather than hidden: the point is to keep the shape of the grand
+   staff on screen, treble sitting where it sits relative to bass, even while
+   you are drilling only one of them. Grayscale first, since the landmark
+   markings are coloured and a colour left in place reads as still in use;
+   the opacity on top is what actually fades it.
+
+   js/code.js toggles the class from applyStaffVisibility(), and
+   js/modules/flash-cards.js toggles the same class on its own staves for the
+   same reason — the two share this rule on purpose. Scoped by the class
+   itself rather than by pane: nothing but those two callers ever adds
+   htp-staff--idle, so free-practice, which reuses the bare
+   .staffContainer/.staffsContainer names for unrelated staves of its own,
+   is never touched — without having to name every pane that IS allowed in. */
+div.staffContainer.htp-staff--idle {
+	filter: grayscale(1);
+	opacity: 0.3;
+}
+
 /* ------------------------------------------------------------ free practice */
 
 .htp-free { padding-top: 0.5em; }
