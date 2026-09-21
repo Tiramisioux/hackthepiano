@@ -45,6 +45,23 @@ body.htp-keyboard-open {
 	min-height: 0;
 }
 
+/*
+ * Dropdown lists read as a list, not as a wall of bold.
+ *
+ * Several of the app's <select>s are semibold, which is right for the closed
+ * control — shut, a select shows the choice in force, and that is worth the
+ * weight. Chrome then renders the whole open list at the same weight, so
+ * scrolling fifty difficulty levels means fifty bold lines with nothing to
+ * tell them apart. The entries go back to normal, and only the one currently
+ * chosen keeps the weight, so it can be found again in a long list.
+ *
+ * How far this gets honoured is the browser's business: Chrome applies both
+ * rules, Safari styles <option> barely at all. Nothing here is load-bearing
+ * — a browser that ignores it shows the list exactly as it does today.
+ */
+.htp-app select option { font-weight: 400; }
+.htp-app select option:checked { font-weight: 600; }
+
 /* ------------------------------------------------------------------- tabs */
 
 .htp-tabbar {
