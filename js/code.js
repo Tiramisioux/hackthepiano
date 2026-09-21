@@ -360,11 +360,22 @@ $(function(){
 			minor:  {intervals: [intervals.unison, intervals.minorThird, intervals.fifth]}
 		}
 	};
+	/*
+	 * The clef used to be baked into a level — beginner1 in treble,
+	 * beginner4 the same range in bass, beginner7 both staves at once.
+	 * It no longer is: a level is a reading difficulty (which notes, what
+	 * range, which accidentals), and which clef or clefs it is read in is
+	 * decided at runtime by the Treble/Bass switches in the options bar —
+	 * see exerciseClefSets() near setClefs(). A level still lists
+	 * clefSets, but that list now only says whether it is a treble/bass
+	 * exercise the switches govern, or a clef of its own — alto, tenor —
+	 * that the switches don't touch and can't narrow.
+	 */
 	var levels = {
 		beginner1: {
-			name: 'Beginner 1',
-			staffs: [staffs.staff1],
-			clefSets: [clefSets.treble],
+			name: 'Beginner 1 — lines',
+			staffs: [staffs.staff1, staffs.staff2],
+			clefSets: [clefSets.both],
 			schemas: [schemas.intervals.unison],
 			keys: [keys.C],
 			decorators: [decorators.natural],
@@ -372,9 +383,9 @@ $(function(){
 			shiftsEven: true, shiftsOdd: false
 		},
 		beginner2: {
-			name: 'Beginner 2',
-			staffs: [staffs.staff1],
-			clefSets: [clefSets.treble],
+			name: 'Beginner 2 — spaces',
+			staffs: [staffs.staff1, staffs.staff2],
+			clefSets: [clefSets.both],
 			schemas: [schemas.intervals.unison],
 			keys: [keys.C],
 			decorators: [decorators.natural],
@@ -382,47 +393,7 @@ $(function(){
 			shiftsEven: false, shiftsOdd: true
 		},
 		beginner3: {
-			name: 'Beginner 3',
-			staffs: [staffs.staff1],
-			clefSets: [clefSets.treble],
-			schemas: [schemas.intervals.unison],
-			keys: [keys.C],
-			decorators: [decorators.natural],
-			shiftFrom: -4,	shiftTo: 4,
-			shiftsEven: true, shiftsOdd: true
-		},
-		beginner4: {
-			name: 'Beginner 4',
-			staffs: [staffs.staff2],
-			clefSets: [clefSets.bass],
-			schemas: [schemas.intervals.unison],
-			keys: [keys.C],
-			decorators: [decorators.natural],
-			shiftFrom: -4,	shiftTo: 4,
-			shiftsEven: true, shiftsOdd: false
-		},
-		beginner5: {
-			name: 'Beginner 5',
-			staffs: [staffs.staff2],
-			clefSets: [clefSets.bass],
-			schemas: [schemas.intervals.unison],
-			keys: [keys.C],
-			decorators: [decorators.natural],
-			shiftFrom: -4,	shiftTo: 4,
-			shiftsEven: false, shiftsOdd: true
-		},
-		beginner6: {
-			name: 'Beginner 6',
-			staffs: [staffs.staff2],
-			clefSets: [clefSets.bass],
-			schemas: [schemas.intervals.unison],
-			keys: [keys.C],
-			decorators: [decorators.natural],
-			shiftFrom: -4,	shiftTo: 4,
-			shiftsEven: true, shiftsOdd: true
-		},
-		beginner7: {
-			name: 'Beginner 7',
+			name: 'Beginner 3 — the staff',
 			staffs: [staffs.staff1, staffs.staff2],
 			clefSets: [clefSets.both],
 			schemas: [schemas.intervals.unison],
@@ -431,38 +402,78 @@ $(function(){
 			shiftFrom: -4,	shiftTo: 4,
 			shiftsEven: true, shiftsOdd: true
 		},
-		intermediate1: {
-			name: 'Intermediate 1',
+		beginner4: {
+			name: 'Beginner 4 — one ledger line',
 			staffs: [staffs.staff1, staffs.staff2],
-			clefSets: [clefSets.both, clefSets.treble, clefSets.bass],
+			clefSets: [clefSets.both],
 			schemas: [schemas.intervals.unison],
 			keys: [keys.C],
 			decorators: [decorators.natural],
-			shiftFrom: -8,	shiftTo: 8,
-			shiftsEven: true, shiftsOdd: false
+			shiftFrom: -6,	shiftTo: 6,
+			shiftsEven: true, shiftsOdd: true
 		},
-		intermediate2: {
-			name: 'Intermediate 2',
+		beginner5: {
+			name: 'Beginner 5 — two ledger lines',
 			staffs: [staffs.staff1, staffs.staff2],
-			clefSets: [clefSets.both, clefSets.treble, clefSets.bass],
-			schemas: [schemas.intervals.unison],
-			keys: [keys.C],
-			decorators: [decorators.natural],
-			shiftFrom: -8,	shiftTo: 8,
-			shiftsEven: false, shiftsOdd: true
-		},
-		intermediate3: {
-			name: 'Intermediate 3',
-			staffs: [staffs.staff1, staffs.staff2],
-			clefSets: [clefSets.both, clefSets.treble, clefSets.bass],
+			clefSets: [clefSets.both],
 			schemas: [schemas.intervals.unison],
 			keys: [keys.C],
 			decorators: [decorators.natural],
 			shiftFrom: -8,	shiftTo: 8,
 			shiftsEven: true, shiftsOdd: true
 		},
+		beginner6: {
+			name: 'Beginner 6 — above the staff',
+			staffs: [staffs.staff1, staffs.staff2],
+			clefSets: [clefSets.both],
+			schemas: [schemas.intervals.unison],
+			keys: [keys.C],
+			decorators: [decorators.natural],
+			shiftFrom: 4,	shiftTo: 10,
+			shiftsEven: true, shiftsOdd: true
+		},
+		beginner7: {
+			name: 'Beginner 7 — below the staff',
+			staffs: [staffs.staff1, staffs.staff2],
+			clefSets: [clefSets.both],
+			schemas: [schemas.intervals.unison],
+			keys: [keys.C],
+			decorators: [decorators.natural],
+			shiftFrom: -10,	shiftTo: -4,
+			shiftsEven: true, shiftsOdd: true
+		},
+		intermediate1: {
+			name: 'Intermediate 1 — lines, three ledger',
+			staffs: [staffs.staff1, staffs.staff2],
+			clefSets: [clefSets.both, clefSets.treble, clefSets.bass],
+			schemas: [schemas.intervals.unison],
+			keys: [keys.C],
+			decorators: [decorators.natural],
+			shiftFrom: -10,	shiftTo: 10,
+			shiftsEven: true, shiftsOdd: false
+		},
+		intermediate2: {
+			name: 'Intermediate 2 — spaces, three ledger',
+			staffs: [staffs.staff1, staffs.staff2],
+			clefSets: [clefSets.both, clefSets.treble, clefSets.bass],
+			schemas: [schemas.intervals.unison],
+			keys: [keys.C],
+			decorators: [decorators.natural],
+			shiftFrom: -10,	shiftTo: 10,
+			shiftsEven: false, shiftsOdd: true
+		},
+		intermediate3: {
+			name: 'Intermediate 3 — three ledger lines',
+			staffs: [staffs.staff1, staffs.staff2],
+			clefSets: [clefSets.both, clefSets.treble, clefSets.bass],
+			schemas: [schemas.intervals.unison],
+			keys: [keys.C],
+			decorators: [decorators.natural],
+			shiftFrom: -10,	shiftTo: 10,
+			shiftsEven: true, shiftsOdd: true
+		},
 		intermediate4: {
-			name: 'Intermediate 4',
+			name: 'Intermediate 4 — lines, four ledger',
 			staffs: [staffs.staff1, staffs.staff2],
 			clefSets: [clefSets.both, clefSets.treble, clefSets.bass],
 			schemas: [schemas.intervals.unison],
@@ -472,7 +483,7 @@ $(function(){
 			shiftsEven: true, shiftsOdd: false
 		},
 		intermediate5: {
-			name: 'Intermediate 5',
+			name: 'Intermediate 5 — spaces, four ledger',
 			staffs: [staffs.staff1, staffs.staff2],
 			clefSets: [clefSets.both, clefSets.treble, clefSets.bass],
 			schemas: [schemas.intervals.unison],
@@ -482,7 +493,7 @@ $(function(){
 			shiftsEven: false, shiftsOdd: true
 		},
 		intermediate6: {
-			name: 'Intermediate 6',
+			name: 'Intermediate 6 — four ledger lines',
 			staffs: [staffs.staff1, staffs.staff2],
 			clefSets: [clefSets.both, clefSets.treble, clefSets.bass],
 			schemas: [schemas.intervals.unison],
@@ -1130,6 +1141,9 @@ $(function(){
 			clearPlayedNotes();
 		for (var i = state.activeNotes.length - 1; i >= 0; i--)
 			removeSymbolsSet(i);
+		/* Anything still in flight was drawn for the exercise just cleared,
+		 * and must not land on the staff that replaces it. */
+		newStaffGeneration();
 		state.noteIndex = 0;
 		state.activeClefSet = null;
 		state.activeKey = null;
@@ -1162,13 +1176,43 @@ $(function(){
 		note.symbol.width(width);
 		note.width = 100 * note.symbol.outerWidth();
 	};
-	/* Symbols appended but not yet measured and queued. */
+	/* Symbols appended but not yet measured and queued — of the current
+	 * generation only, since a wipe drops the rest (see below). */
 	var pendingSymbols = 0;
+	/*
+	 * Which exercise the staff is currently showing.
+	 *
+	 * A symbol is in flight for 10ms between being appended and being
+	 * measured and queued (below), and the exercise can move on under it in
+	 * that window: the clef can change, or the whole staff can be wiped for a
+	 * new level or a new clef choice. A note that lands afterwards was drawn
+	 * and spelled against an exercise that no longer exists, so it is dropped
+	 * rather than allowed to join the queue.
+	 *
+	 * Letting it join does more than show one wrong note. createNewNote()
+	 * waits for the staff to drain before it re-clefs, so a stale note it is
+	 * still waiting on leaves the staff with no clef at all — until the note
+	 * scrolls off and is counted as a miss, seconds later.
+	 */
+	var staffGeneration = 0;
+	var newStaffGeneration = function(){
+		staffGeneration++;
+		/* Everything still in flight belongs to the generation just ended. */
+		pendingSymbols = 0;
+	};
 	var addSymbol = function(staffEl, note){
 		note.time = 0;
+		note.staffGeneration = staffGeneration;
 		staffEl.append(note.symbol);
 		pendingSymbols++;
 		setTimeout(function(){
+			if (note.staffGeneration !== staffGeneration)
+			{
+				/* Stale: the exercise this note was drawn for is gone, and
+				 * pendingSymbols was cleared along with it. */
+				note.symbol.remove();
+				return;
+			}
 			pendingSymbols--;
 			measureSymbol(note);
 			/* Drawn where it starts, now that it is measured. The animation
@@ -1865,6 +1909,40 @@ $(function(){
 	 * see createNewNote().
 	 */
 	var STATIC_CLEF_LEFT_EM = 0.2;
+	/* The two clefs the Treble/Bass switches in the options bar have any say
+	 * over. Alto and tenor are clefs an exercise is written in, not a choice
+	 * the switches offer, so they sit outside this. */
+	var GOVERNED_CLEFS = ['treble', 'bass'];
+	/* Does this clef set put either governed clef on any staff? */
+	var clefSetIsGoverned = function(clefSet){
+		return Object.keys(clefSet).some(function(id){
+			return GOVERNED_CLEFS.indexOf(clefSet[id]) !== -1;
+		});
+	};
+	/*
+	 * The clef sets a level actually exercises, once the Treble/Bass switches
+	 * have had their say — exported as notation.clefSetsFor for a module that
+	 * builds its own exercise from a level.
+	 *
+	 * A level's clefSets is what it was authored with; the switches are a
+	 * further filter the player controls live. An alto or tenor level answers
+	 * to neither switch — its clef is the point of the exercise, not a setting
+	 * — so it is handed back untouched. A treble/bass level does answer: with
+	 * both switches on it keeps its own list exactly as authored (today's
+	 * behaviour), but with only one on, the level runs entirely in that clef,
+	 * on a single staff, whatever clef sets it lists of its own — a
+	 * grand-staff level with Bass off has no business routing half its notes
+	 * to a staff nobody can see.
+	 */
+	var exerciseClefSets = function(level){
+		if (!level.clefSets.some(clefSetIsGoverned))
+			return level.clefSets;
+		var choice = (window.HTP && typeof window.HTP.clefChoice === 'function')
+			? window.HTP.clefChoice() : ['treble', 'bass'];
+		if (choice.length === 1 && clefSets[choice[0]])
+			return [clefSets[choice[0]]];
+		return level.clefSets;
+	};
 	/*
 	 * The staves a clef set actually needs.
 	 *
@@ -1878,6 +1956,15 @@ $(function(){
 	 */
 	var staffsForClefSet = function(clefSet){
 		var chosen = state.level.staffs.filter(function(staff){ return !!clefSet[staff.id]; });
+		/* exerciseClefSets() can hand a level a clef set its own staff list
+		 * never anticipated — a level that only lists staff2, say, played
+		 * against clefSets.treble, which names staff1. Fall back to the
+		 * staves the clef set itself names rather than stranding the
+		 * exercise with nowhere to put a note; staff1 first, matching the
+		 * order the rest of the trainer assumes for a single staff. */
+		if (!chosen.length)
+			chosen = Object.keys(clefSet).sort().map(function(id){ return staffs[id]; })
+				.filter(function(staff){ return !!staff; });
 		if (chosen.length === 2 && clefSet[chosen[0].id] === clefSet[chosen[1].id])
 			chosen = [chosen[0]];
 		return chosen;
@@ -1906,11 +1993,15 @@ $(function(){
 		});
 	};
 	var setClefs = function(){
-		var clefSet = getRandomArrayEl(state.level.clefSets);
+		var clefSet = getRandomArrayEl(exerciseClefSets(state.level));
 		var key = getRandomArrayEl(state.level.keys);
 
 		if (state.activeClefSet === clefSet && state.activeKey === key)
 			return false;
+
+		/* The clef is actually changing: any symbol still in flight (see
+		 * addSymbol) was drawn and spelled against a clef this obsoletes. */
+		newStaffGeneration();
 
 		state.activeClefSet = clefSet;
 		state.activeKey = key;
@@ -1938,6 +2029,23 @@ $(function(){
 		updateKeyHint();
 
 		return true;
+	};
+	/*
+	 * The Treble/Bass switches change what exerciseClefSets() will hand back,
+	 * but that only reaches the exercise the next time setClefs() runs — and
+	 * whatever is already on the staff was read in the clef current a moment
+	 * ago, which may now be disallowed. Left alone it would sit there, wrong,
+	 * until the staff happened to drain on its own — createNewNote() only
+	 * checks in every state.newNoteInterval, up to several seconds away. So a
+	 * flipped switch clears the staff and re-clefs immediately instead of
+	 * waiting its turn.
+	 */
+	var applyClefChoice = function(){
+		if (!state.level)
+			return;
+		removeAllNotes();              /* this already nulls activeClefSet + activeKey */
+		state.clefChangeDue = false;
+		setClefs();
 	};
 	var getNumberOfAdditionalLines = function(shift){
 		if (shift > 5)
@@ -2796,6 +2904,10 @@ $(function(){
 		window.HTP.applyNoteColours = applyNoteColours;
 		window.HTP.applyNoteShape = applyNoteShape;
 		window.HTP.applyStaffVisibility = applyStaffVisibility;
+		/* js/htp-panes.js calls this whenever a showClef* setting changes —
+		 * the running exercise needs to be cleared and re-clefed right away,
+		 * not left stale until the staff next happens to drain. */
+		window.HTP.applyClefChoice = applyClefChoice;
 		window.HTP.relayoutForGrid = relayoutForGrid;
 		/* The trainer only runs while its pane is showing; the module's
 		 * onShow / onHide hooks in js/modules/note-trainer.js drive these. */
@@ -2869,6 +2981,11 @@ $(function(){
 			 * note range and which accidentals it allows. Read-only.
 			 */
 			levels: levels,
+			/* Which of a level's clefSets are actually in play once the
+			 * Treble/Bass switches have narrowed them down — see setClefs().
+			 * js/modules/flash-cards.js asks this the same question the
+			 * trainer itself answers before picking a clef to draw. */
+			clefSetsFor: exerciseClefSets,
 			/* Staff positions between two musically continuous staves, 0 when
 			 * they are not continuous — and the renderStaffMarkers() options
 			 * for each staff of the pair, [upper, lower], for that gap. */

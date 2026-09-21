@@ -168,6 +168,11 @@
 	 * Each checkbox is bound to one HTP setting, plus the js/code.js function
 	 * that re-renders after it changes. js/code.js publishes those as
 	 * HTP.applyStaffSpacing / HTP.applyLineMarkers once it has run.
+	 *
+	 * optShowClefTreble and optShowClefBass are missing from this list on
+	 * purpose: the options bar promises at least one clef stays on, which the
+	 * generic one-checkbox-one-setting binding below can't enforce. They are
+	 * bound by bindClefChoice() instead.
 	 */
 	var OPTIONS = [
 		{ id: 'optMusicalClefDistance', setting: 'musicalClefDistance', apply: 'applyStaffSpacing' },
@@ -177,8 +182,6 @@
 		{ id: 'optColourNotes',         setting: 'colourNotes',         apply: 'applyNoteColours' },
 		{ id: 'optQuarterNotes',        setting: 'quarterNotes',        apply: 'applyNoteShape' },
 		{ id: 'optPianoSound',          setting: 'pianoSound',          apply: null },
-		{ id: 'optShowClefTreble',      setting: 'showClefTreble',      apply: null },
-		{ id: 'optShowClefBass',        setting: 'showClefBass',        apply: null },
 		{ id: 'optKeyNames',            setting: 'keyNames',            apply: null },
 		{ id: 'optShowFnKeys',          setting: 'showFnKeys',          apply: null },
 		{ id: 'optOctaveNumbers',       setting: 'octaveNumbers',       apply: null },
@@ -320,10 +323,34 @@
 	 * Turning a clef off removes its whole staff — lines and all — not just the
 	 * glyph. js/code.js owns the trainer's staves; a module that draws its own
 	 * follows the same setting from its own applyOptions().
+	 *
+	 * This is the boot-time call only. At boot js/code.js has already drawn the
+	 * first level's notes in whatever clef(s) it started with, and staff
+	 * visibility is all that needs syncing to the restored settings — there is
+	 * nothing on the staff yet that was read in a clef that might be wrong.
+	 * The running-exercise case is applyClefChoice() below.
 	 */
 	function applyClefVisibility() {
 		if (typeof window.HTP.applyStaffVisibility === 'function')
 			window.HTP.applyStaffVisibility();
+	}
+
+	/*
+	 * The clefs in play have changed under the exercise, not just which
+	 * staves are shown: whatever is on the staff was read in a clef that
+	 * may be gone. The trainer clears it and re-clefs.
+	 *
+	 * Held off while the pair of switches is mid-write. Turning the last clef
+	 * off writes both settings, and re-clefing on the first of them would
+	 * build a staff for a clef choice that lasts one statement — which shows
+	 * as a flash of the wrong staff before the right one arrives.
+	 */
+	var writingClefChoice = false;
+
+	function applyClefChoice() {
+		if (writingClefChoice) return;
+		if (typeof window.HTP.applyClefChoice === 'function') window.HTP.applyClefChoice();
+		else if (typeof window.HTP.applyStaffVisibility === 'function') window.HTP.applyStaffVisibility();
 	}
 
 	function clampStaffSize(value) {
@@ -357,6 +384,53 @@
 		window.HTP.setSetting('staffSize', clampStaffSize(window.HTP.settings.staffSize + delta));
 	}
 
+	/*
+	 * Treble and Bass are bound here rather than through the generic OPTIONS
+	 * loop, because the two checkboxes are not independent: the options bar
+	 * keeps at least one of them on. Unchecking the only one that is on reads
+	 * as "stop practising this clef", and the only way to honour that without
+	 * leaving the exercise with nothing on the staff is to switch the other
+	 * one on for you. So that is what happens — the click always does
+	 * something, it is just not always the thing it looks like on its own.
+	 *
+	 * Both checkboxes are re-synced from window.HTP.settings after every
+	 * change, which is what makes the box you clicked visibly revert and the
+	 * other one visibly check. Setting .checked in script does not fire a
+	 * change event, so this does not re-trigger itself.
+	 */
+	function bindClefChoice() {
+		var treble = document.getElementById('optShowClefTreble');
+		var bass = document.getElementById('optShowClefBass');
+		if (!treble || !bass) return;
+
+		function sync() {
+			treble.checked = !!window.HTP.settings.showClefTreble;
+			bass.checked = !!window.HTP.settings.showClefBass;
+		}
+
+		function bind(input, key, otherKey) {
+			input.addEventListener('change', function () {
+				writingClefChoice = true;
+				try {
+					/* The other clef goes on BEFORE this one goes off, so no
+					 * listener anywhere ever sees a moment with no clef at
+					 * all — only "both", then "the other one". */
+					if (!input.checked && !window.HTP.settings[otherKey])
+						window.HTP.setSetting(otherKey, true);
+					window.HTP.setSetting(key, input.checked);
+				} finally {
+					writingClefChoice = false;
+				}
+				sync();
+				applyClefChoice();
+			});
+		}
+
+		bind(treble, 'showClefTreble', 'showClefBass');
+		bind(bass, 'showClefBass', 'showClefTreble');
+		sync();
+	}
+
 	function bindOptions() {
 		OPTIONS.forEach(function (option) {
 			var input = document.getElementById(option.id);
@@ -368,6 +442,8 @@
 					window.HTP[option.apply]();
 			});
 		});
+
+		bindClefChoice();
 
 		var smaller = document.getElementById('optStaffSmaller');
 		var bigger = document.getElementById('optStaffBigger');
@@ -382,7 +458,7 @@
 		window.HTP.onSettingChange(function (key) {
 			if (key === 'staffSize') applyStaffSize();
 			if (key === 'scrollSpeed') applyScrollSpeed();
-			if (key.indexOf('showClef') === 0) applyClefVisibility();
+			if (key.indexOf('showClef') === 0) applyClefChoice();
 			if (RECOLOUR_ON.indexOf(key) !== -1
 				&& typeof window.HTP.applyNoteColours === 'function')
 				window.HTP.applyNoteColours();

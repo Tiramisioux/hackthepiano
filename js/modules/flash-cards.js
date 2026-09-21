@@ -232,6 +232,16 @@
 
 	/* -------------------------------------------------------------- cards */
 
+	/* The clef sets a round may draw from. Which clef a level is read in is
+	 * the user's choice in the options bar — the Treble/Bass switches — not
+	 * a property of the level itself, so a card has to ask the same question
+	 * the trainer would rather than reading level.clefSets straight. Guarded
+	 * because the trainer is only just growing this API. */
+	function clefSetsFor(lvl) {
+		var n = notation();
+		return (n && typeof n.clefSetsFor === 'function') ? n.clefSetsFor(lvl) : lvl.clefSets;
+	}
+
 	/*
 	 * A round fixes the clef set and key for the next few cards, as the trainer
 	 * does every ten notes.
@@ -243,7 +253,7 @@
 	 * gap between them that no clef distance explains. One staff, then.
 	 */
 	function newRound() {
-		var clefSet = randomOf(level.clefSets);
+		var clefSet = randomOf(clefSetsFor(level));
 		var ids = level.staffs.map(function (staff) { return staff.id; })
 			.filter(function (id) { return !!clefSet[id]; });
 		if (ids.length === 2 && clefSet[ids[0]] === clefSet[ids[1]])
@@ -559,10 +569,15 @@
 					render();
 				}
 				if (key.indexOf('showClef') === 0) {
-					drawStaves();
-					/* The card's own staff may just have gone. */
-					if (card && !window.HTP.clefEnabled(card.clefId)) nextCard();
-					else render();
+					/* The clefs on now decide which clef sets a level can use
+					 * at all, not just which staff is visible — so this is a
+					 * new round, not a card whose staff quietly went away.
+					 * Throw it out and ask again, the way a level change
+					 * does, short of resetting the stats: nextCard() rebuilds
+					 * the round from the clefs now on and redraws. */
+					round = null;
+					forgetAnswer();
+					nextCard();
 				}
 			});
 			api.onMarkersChanged(function () {
