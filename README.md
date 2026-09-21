@@ -44,6 +44,13 @@ The fork's additions were built with [Claude Code](https://claude.com/claude-cod
   time, held until you play it — a note drawn on the staff, or a note named
   in letters for you to find on the keyboard. It uses the trainer's own levels,
   so the pool, staves, clefs and keys are the same; only the clock is gone.
+- **You choose the clefs.** The *Treble* and *Bass* switches decide which clefs
+  an exercise uses, rather than only which staves are drawn. With one on, every
+  difficulty level runs entirely in that clef on a single staff; with both on, a
+  level uses the grand staff. The clef is no longer baked into the level, so the
+  same ladder of reading difficulty is available in either hand — and the
+  beginner rungs now step out one ledger line at a time, with drills for the
+  space above and below the staff. At least one clef always stays on.
 - **Musical clef distance.** Optionally space the grand staff by the true pitch
   distance between its clefs rather than the wider gap sheet music engraves, so
   the two staves read as one continuous pitch space.

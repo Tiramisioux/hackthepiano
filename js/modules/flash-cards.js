@@ -153,7 +153,10 @@
 
 	/* ------------------------------------------------------------- staves */
 
-	/* Which of the round's staves can carry a card: the clef has to be on. */
+	/* Which of the round's staves can actually carry a card: it has to be one
+	 * the round is using, with its clef switched on. drawStaves() below may
+	 * put a staff besides these on screen too, faint — that one is furniture,
+	 * never a staff a card is allowed to land on. */
 	function usableStaves() {
 		if (!round) return [];
 		return round.ids.filter(function (id) {
@@ -161,13 +164,31 @@
 		});
 	}
 
+	/* The trainer's own frame for this level: every staff to draw, clef and
+	 * all, whether or not the round is using it — the same list js/code.js
+	 * now draws from, so the two panes agree on the shape of the staff.
+	 * Guarded because the trainer is only just growing this API. */
+	function frameFor(lvl) {
+		var n = notation();
+		return (n && typeof n.staffFrame === 'function') ? n.staffFrame(lvl) : null;
+	}
+
 	/*
-	 * Draw the clefs and the markings for the current round. A staff is shown
-	 * only when the level uses it and its clef is switched on, exactly as the
-	 * trainer decides; with the musical clef distance on, two different clefs
-	 * are spaced by their true pitch distance.
+	 * The clef to draw on each staff, by staff id. With a frame to ask, every
+	 * staff it names is drawn — including one the round is not using this
+	 * time, which drawStaves() below draws faint rather than leaving out —
+	 * and a staff the frame does not name (an alto level's second staff) is
+	 * null, same as ever. Without a frame to ask, this falls back to the old
+	 * rule: a staff is drawn only when the round is using it and its clef is
+	 * switched on.
 	 */
-	function shownClefs() {
+	function frameClefs() {
+		var frame = frameFor(level);
+		if (frame) {
+			var byId = {};
+			frame.forEach(function (s) { byId[s.id] = s.clef; });
+			return STAFF_IDS.map(function (id) { return byId[id] || null; });
+		}
 		return STAFF_IDS.map(function (id) {
 			var inRound = round && round.ids.indexOf(id) !== -1;
 			var clefId = inRound ? round.clefSet[id] : null;
@@ -175,8 +196,27 @@
 		});
 	}
 
+	/* A staff the frame draws that the round is not asking on right now — the
+	 * other half of the grand staff, kept in view so its shape stays visible
+	 * while you drill one clef. drawStaves() marks it with htp-staff--idle. */
+	function isIdleStaff(id) {
+		return !!round && round.ids.indexOf(id) === -1;
+	}
+
+	/*
+	 * Draw every staff the level's frame calls for, with its own clef and the
+	 * round's key signature — a grand staff shows both halves even though a
+	 * card only ever sits on one of them at a time, an alto or tenor level
+	 * shows its one. A staff the round is not using is drawn faint
+	 * (htp-staff--idle) rather than left out, so the shape of the grand
+	 * staff stays visible while you drill one clef; flash cards shares that
+	 * staff area and those levels with the trainer, so it has to agree with
+	 * what the trainer now draws. With the musical clef distance on, two
+	 * different clefs are still spaced by their true pitch distance, faint
+	 * half or not.
+	 */
 	function drawStaves() {
-		var shown = shownClefs();
+		var shown = frameClefs();
 		/* The gap between musically continuous staves is real staff positions,
 		 * and the upper staff's legend and markings run on down through it. */
 		var pair = notation().pairOptions((shown[0] && shown[1]) ? notation().gapBetween(shown[0], shown[1]) : 0);
@@ -186,10 +226,14 @@
 			var container = staff.closest('.staffContainer');
 			staff.find('.symbol.clef').remove();
 			staff.find('.htp-markers').remove();
+			/* Cleared before it is ever set again, so a staff that becomes
+			 * active — the round moved back onto it — is not left faint. */
+			container.removeClass('htp-staff--idle');
 
 			var clefId = shown[i];
 			container.toggle(!!clefId);
 			if (!clefId) return;
+			if (isIdleStaff(id)) container.addClass('htp-staff--idle');
 
 			/* Clef first — with the key signature — then the markings and the
 			 * legend, which are placed beside it. */
@@ -201,9 +245,11 @@
 	}
 
 	/* Two different clefs, musically spaced. Re-applied whenever the ledger
-	 * room changes, because that room is padding and lies in the gap. */
+	 * room changes, because that room is padding and lies in the gap. Goes by
+	 * the frame rather than the round, so a faint idle half still sits its
+	 * true musical distance from the one beside it. */
 	function applySpacing() {
-		var shown = shownClefs();
+		var shown = frameClefs();
 		var upper = staves[STAFF_IDS[0]].closest('.staffContainer');
 		var lower = staves[STAFF_IDS[1]].closest('.staffContainer');
 		lower.css('margin-top',
@@ -232,6 +278,16 @@
 
 	/* -------------------------------------------------------------- cards */
 
+	/* The clef sets a round may draw from. Which clef a level is read in is
+	 * the user's choice in the options bar — the Treble/Bass switches — not
+	 * a property of the level itself, so a card has to ask the same question
+	 * the trainer would rather than reading level.clefSets straight. Guarded
+	 * because the trainer is only just growing this API. */
+	function clefSetsFor(lvl) {
+		var n = notation();
+		return (n && typeof n.clefSetsFor === 'function') ? n.clefSetsFor(lvl) : lvl.clefSets;
+	}
+
 	/*
 	 * A round fixes the clef set and key for the next few cards, as the trainer
 	 * does every ten notes.
@@ -243,7 +299,7 @@
 	 * gap between them that no clef distance explains. One staff, then.
 	 */
 	function newRound() {
-		var clefSet = randomOf(level.clefSets);
+		var clefSet = randomOf(clefSetsFor(level));
 		var ids = level.staffs.map(function (staff) { return staff.id; })
 			.filter(function (id) { return !!clefSet[id]; });
 		if (ids.length === 2 && clefSet[ids[0]] === clefSet[ids[1]])
@@ -559,10 +615,15 @@
 					render();
 				}
 				if (key.indexOf('showClef') === 0) {
-					drawStaves();
-					/* The card's own staff may just have gone. */
-					if (card && !window.HTP.clefEnabled(card.clefId)) nextCard();
-					else render();
+					/* The clefs on now decide which clef sets a level can use
+					 * at all, not just which staff is visible — so this is a
+					 * new round, not a card whose staff quietly went away.
+					 * Throw it out and ask again, the way a level change
+					 * does, short of resetting the stats: nextCard() rebuilds
+					 * the round from the clefs now on and redraws. */
+					round = null;
+					forgetAnswer();
+					nextCard();
 				}
 			});
 			api.onMarkersChanged(function () {

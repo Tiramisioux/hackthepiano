@@ -389,6 +389,10 @@ window.HTP = (function (window, document) {
 
 	var SETTINGS_KEY = 'htp.settings';
 
+	/* The two clefs the Treble/Bass switches govern. Alto and tenor are levels
+	 * of their own and sit outside this pair — see clefChoice() below. */
+	var GOVERNED_CLEFS = ['treble', 'bass'];
+
 	/* App-wide preferences, persisted per browser. js/code.js reads
 	 * settings.musicalClefDistance directly when it lays out the staves. */
 	var settings = {
@@ -401,7 +405,8 @@ window.HTP = (function (window, document) {
 		 * strange thing, and nothing is audible until the first key is pressed
 		 * anyway — which is the gesture that starts the audio. */
 		pianoSound: true,
-		/* Each clef can be hidden on its own. */
+		/* Which clefs the exercises are to use — see clefChoice() below for how
+		 * these two combine into a level's clef set. */
 		showClefTreble: true,
 		showClefBass: true,
 		showNoteNames: false,
@@ -556,6 +561,24 @@ window.HTP = (function (window, document) {
 			if (!clefId) return true;
 			var key = 'showClef' + clefId.charAt(0).toUpperCase() + clefId.slice(1);
 			return settings[key] !== false;
+		},
+		/*
+		 * Which clefs the exercises are to use.
+		 *
+		 * The Treble and Bass switches are the user's answer to "one clef or
+		 * two": with one on, a level runs entirely in that clef on a single
+		 * staff; with both on, a level uses the clef sets it lists of its own.
+		 * The options bar keeps at least one on, so the fallback here is only
+		 * for a settings store that predates that rule.
+		 *
+		 * Alto and tenor are not in this set. They are levels of their own, not
+		 * one of the two clefs these switches govern.
+		 */
+		clefChoice: function () {
+			var on = GOVERNED_CLEFS.filter(function (id) {
+				return settings['showClef' + id.charAt(0).toUpperCase() + id.slice(1)] !== false;
+			});
+			return on.length ? on : GOVERNED_CLEFS.slice();
 		},
 		/* Landmark for a pitch class (0 = C), or null. Pass an octave to get the
 		 * register-shaded colour rather than the flat palette one. */
