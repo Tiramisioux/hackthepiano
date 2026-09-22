@@ -190,7 +190,11 @@
 		{ id: 'optLandmarkG',           setting: 'landmarkG',           apply: 'applyLineMarkers' },
 		{ id: 'optLegendLines',         setting: 'legendLines',         apply: 'applyLineMarkers' },
 		{ id: 'optLegendSpaces',        setting: 'legendSpaces',        apply: 'applyLineMarkers' },
-		{ id: 'optShowKeyHint',         setting: 'showKeyHint',         apply: null }
+		{ id: 'optShowKeyHint',         setting: 'showKeyHint',         apply: null },
+		/* Handled locally below, alongside staffSize and scrollSpeed — it is
+		 * app chrome (the <html> theme attribute), not something js/code.js
+		 * re-renders. */
+		{ id: 'optNightMode',           setting: 'nightMode',           apply: null }
 	];
 
 	/* Settings that also change how notes already on a staff are drawn, so the
@@ -317,6 +321,20 @@
 
 	function nudgeSpeed(delta) {
 		window.HTP.setSetting('scrollSpeed', clampSpeed(window.HTP.settings.scrollSpeed + delta));
+	}
+
+	/*
+	 * js/htp-core.js already set the [data-htp-theme] attribute this setting
+	 * drives, synchronously and before first paint, so a restored preference
+	 * never flashes light. This is what keeps it in sync after that: the
+	 * checkbox toggling at runtime, and the address-bar colour on mobile,
+	 * which has to match or the theme looks like it stops at the page edge.
+	 */
+	function applyNightMode() {
+		var on = !!window.HTP.settings.nightMode;
+		document.documentElement.setAttribute('data-htp-theme', on ? 'dark' : 'light');
+		var meta = document.querySelector('meta[name="theme-color"]');
+		if (meta) meta.setAttribute('content', on ? '#14161a' : '#ffffff');
 	}
 
 	/*
@@ -458,6 +476,7 @@
 		window.HTP.onSettingChange(function (key) {
 			if (key === 'staffSize') applyStaffSize();
 			if (key === 'scrollSpeed') applyScrollSpeed();
+			if (key === 'nightMode') applyNightMode();
 			if (key.indexOf('showClef') === 0) applyClefChoice();
 			if (RECOLOUR_ON.indexOf(key) !== -1
 				&& typeof window.HTP.applyNoteColours === 'function')
@@ -493,6 +512,7 @@
 
 		applyClefVisibility();
 		applyScrollSpeed();
+		applyNightMode();
 
 		/* js/code.js has already drawn the first clef by now, so this both sets
 		 * the restored size and re-applies everything positioned against it. */

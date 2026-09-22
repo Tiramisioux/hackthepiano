@@ -17,6 +17,49 @@
 	--htp-muted: #767676;
 	--htp-accent: #2b6cb0;
 	--htp-accent-soft: #d6e6fb;
+	/* Theme tokens. Night mode (below) redefines these; nothing else in this
+	   file should hardcode a chrome background or the notation's ink colour
+	   again, or it silently opts out of the theme. */
+	--htp-bg: #fff;             /* page background */
+	--htp-surface: #fff;        /* chrome panels: options bar, keyboard, controls */
+	--htp-surface-muted: #fafafa; /* tab bar strip, fn key strip */
+	--htp-hover: #f0f0f0;       /* tab hover */
+	--htp-highlight: #f4f9ff;   /* a row/card picked out from its list */
+	--htp-staff-bg: #fff;       /* the clef's opaque backdrop — the "paper" */
+	--htp-staff-ink: #000;      /* clef, notehead and ledger-line default colour */
+	--htp-key-white-bg: #fff;
+	--htp-key-white-border: #555;
+	/* Tells the browser to render native widgets — the level <select>,
+	   scrollbars, checkboxes — in the matching scheme. Nothing else in this
+	   file reaches those; without it they would stay light inside a dark
+	   page. */
+	color-scheme: light;
+}
+
+/* Dark theme — toggled by the Night mode option, js/htp-panes.js's
+   applyNightMode(). Set on <html> rather than <body> because js/htp-core.js
+   has to apply a restored preference before first paint, and <body> does not
+   exist yet when that runs. */
+:root[data-htp-theme="dark"] {
+	--htp-border: #3a3f47;
+	--htp-ink: #e8e6e2;
+	--htp-muted: #9099a3;
+	--htp-accent: #5b9bd9;
+	--htp-accent-soft: #24425e;
+	--htp-bg: #15171b;
+	--htp-surface: #1d2126;
+	--htp-surface-muted: #191c20;
+	--htp-hover: #262b31;
+	--htp-highlight: #22303e;
+	--htp-staff-bg: #1d2126;
+	--htp-staff-ink: #d8d6d2;
+	/* Slightly warm and dimmed rather than pure white, which would be the
+	   brightest thing on the page next to everything else that just got
+	   darker — the point of a night mode is less light reaching the eye, not
+	   just a different hue of the same amount. */
+	--htp-key-white-bg: #cac5ba;
+	--htp-key-white-border: #0a0a0a;
+	color-scheme: dark;
 }
 
 /* ------------------------------------------------------------------ shell */
@@ -32,6 +75,10 @@ body {
 	/* Reserve room for the collapsed keyboard bar. */
 	padding-bottom: var(--htp-keyboard-bar);
 	box-sizing: border-box;
+	/* Overrides css/styles.css's plain `background: white`, loaded before this
+	   file, so the page background themes with everything else. */
+	background: var(--htp-bg);
+	color: var(--htp-ink);
 }
 
 body.htp-keyboard-open {
@@ -71,7 +118,7 @@ body.htp-keyboard-open {
 	gap: 0.5em;
 	padding: 0 0.75em;
 	border-bottom: 1px solid var(--htp-border);
-	background: #fafafa;
+	background: var(--htp-surface-muted);
 	min-height: 40px;
 }
 
@@ -93,11 +140,11 @@ body:not(.htp-multi-module) .htp-tabbar { display: none; }
 	cursor: pointer;
 }
 
-.htp-tab:hover { color: var(--htp-ink); background: #f0f0f0; }
+.htp-tab:hover { color: var(--htp-ink); background: var(--htp-hover); }
 
 .htp-tab.is-active {
 	color: var(--htp-ink);
-	background: #fff;
+	background: var(--htp-surface);
 	border-color: var(--htp-border);
 	box-shadow: inset 0 2px 0 var(--htp-accent);
 }
@@ -105,7 +152,7 @@ body:not(.htp-multi-module) .htp-tabbar { display: none; }
 .htp-iconbtn {
 	appearance: none;
 	border: 1px solid var(--htp-border);
-	background: #fff;
+	background: var(--htp-surface);
 	color: var(--htp-muted);
 	font: inherit;
 	font-size: 13px;
@@ -169,7 +216,7 @@ div.staffsContainer {
 .htp-optionsbar {
 	flex: 0 0 auto;
 	padding: 0.5em 1em;
-	background: #fff;
+	background: var(--htp-surface);
 	border-bottom: 1px solid var(--htp-border);
 	/* A drawer: max-height animates where height:auto cannot. The cap is well
 	   clear of the two rows the options wrap to on a narrow window. */
@@ -253,7 +300,7 @@ div.shareContainer { position: static; }
 	right: 0;
 	bottom: 0;
 	z-index: 1000;
-	background: #fff;
+	background: var(--htp-surface);
 	border-top: 1px solid var(--htp-border);
 	box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.08);
 }
@@ -300,7 +347,7 @@ div.shareContainer { position: static; }
 .htp-keyboard__btn {
 	appearance: none;
 	border: 1px solid var(--htp-border);
-	background: #fff;
+	background: var(--htp-surface);
 	color: var(--htp-ink);
 	font: inherit;
 	line-height: 1;
@@ -357,8 +404,8 @@ div.shareContainer { position: static; }
 .htp-key--white {
 	width: var(--htp-white-key-width);
 	height: 100%;
-	background: #fff;
-	border: 1px solid #555;
+	background: var(--htp-key-white-bg);
+	border: 1px solid var(--htp-key-white-border);
 	border-top: none;
 	border-radius: 0 0 3px 3px;
 	z-index: 1;
@@ -415,10 +462,10 @@ div.shareContainer { position: static; }
 	display: flex;
 	gap: 1em;
 	padding: 0.28em 0.5em;
-	border-bottom: 1px solid #f0f0f0;
+	border-bottom: 1px solid var(--htp-border);
 }
 
-.htp-monitor__row--on { background: #f4f9ff; }
+.htp-monitor__row--on { background: var(--htp-highlight); }
 .htp-monitor__label { min-width: 6em; color: var(--htp-ink); }
 .htp-monitor__detail { flex: 1 1 auto; color: var(--htp-muted); }
 .htp-monitor__source { color: #aaa; }
@@ -468,7 +515,9 @@ div.shareContainer { position: static; }
 	line-height: 1;
 	color: #8c8c8c;
 	white-space: nowrap;
-	text-shadow: 0 0 2px #fff, 0 0 2px #fff, 0 0 3px #fff;
+	/* Blends the letter's edges into the staff so a rule does not cut through
+	   it — always the staff's own backdrop colour, never a fixed white. */
+	text-shadow: 0 0 2px var(--htp-staff-bg), 0 0 2px var(--htp-staff-bg), 0 0 3px var(--htp-staff-bg);
 }
 
 /* Dash pattern and weight follow the piano-roll renderer: a 2.6mm dash with a
@@ -571,7 +620,22 @@ div.staff div.symbol.note svg.played.correct { --htp-played-colour: #1e9e5a; }
    containers then overlap, and the lower clef's backdrop — 100em tall, clipped
    only by its own container — painted straight over the tail of the treble
    clef above it. js/code.js sets the class from applyStaffSpacing(). */
+/* Overrides css/styles.css's literal `background: white; color: black;` on
+   the same selector, loaded before this file, so the mask themes with
+   everything else instead of staying a fixed white box in dark mode. */
+div.staff div.symbol.clef { background: var(--htp-staff-bg); color: var(--htp-staff-ink); }
+
 div.staffsContainer.htp-continuous div.staff div.symbol.clef { background: transparent; }
+
+/* The notation's default ink — clef, noteheads and accidentals. None of their
+   glyphs carry their own `fill`, so the SVG spec's initial value (black)
+   would otherwise win no matter the theme. A landmark notehead overrides this
+   with an inline `fill` set by js/code.js's landmarkColourForSound(), which
+   beats any stylesheet rule regardless of specificity, so this never fights
+   it. Ledger lines are a `<line stroke="black">`, not a fill, hence the
+   second rule. */
+div.staff div.symbol svg:not(.line) { fill: var(--htp-staff-ink); }
+div.staff div.symbol svg.line line { stroke: var(--htp-staff-ink); }
 
 /* A staff the exercise has nothing to put on right now — this clef set does
    not use it, or its Treble/Bass switch is off — but it is still drawn,
@@ -705,7 +769,7 @@ div.staff div.lines .htp-staffline {
 	 * weight restores that meaning.
 	 */
 	margin-top: -0.5px;
-	border-top: 1px solid #000;
+	border-top: 1px solid var(--htp-staff-ink);
 }
 
 /* Free practice grows its staff container when a note falls outside the staff.
@@ -1074,7 +1138,7 @@ body.htp-nolabels .htp-key__label { visibility: hidden; }
 	font-size: 15px;
 	font-weight: 600;
 	color: var(--htp-ink);
-	background: #fff;
+	background: var(--htp-surface);
 	border: 1px solid var(--htp-border);
 	border-radius: 4px;
 	padding: 0.25em 0.5em;
@@ -1085,7 +1149,7 @@ body.htp-nolabels .htp-key__label { visibility: hidden; }
 	font-size: 15px;
 	font-weight: 600;
 	color: var(--htp-ink);
-	background: #fff;
+	background: var(--htp-surface);
 	border: 1px solid var(--htp-border);
 	border-radius: 4px;
 	padding: 0.25em 0.5em;
@@ -1137,7 +1201,7 @@ body.htp-nolabels .htp-key__label { visibility: hidden; }
 	font-size: 16px;
 	font-weight: 700;
 	color: var(--htp-accent);
-	background: #fff;
+	background: var(--htp-surface);
 	border: 1px solid var(--htp-border);
 	border-radius: 4px;
 	padding: 0.3em 0.4em;
@@ -1177,7 +1241,7 @@ body.htp-nolabels .htp-key__label { visibility: hidden; }
 /* Step number, so a repeated chord reads as two places in the progression
    rather than one card drawn twice. */
 .htp-scales__chord { position: relative; cursor: pointer; border-radius: 4px; }
-.htp-scales__chord:hover { background: #f4f8fc; }
+.htp-scales__chord:hover { background: var(--htp-highlight); }
 .htp-scales__chord:focus-visible { outline: 2px solid var(--htp-accent); outline-offset: 1px; }
 .htp-scales__step {
 	position: absolute;
@@ -1399,7 +1463,7 @@ div.staff div.symbol.note.htp-scale-note svg.line { right: auto; }
 	gap: 2px;
 	padding: 3px 6px;
 	border-bottom: 1px solid var(--htp-border);
-	background: #fafafa;
+	background: var(--htp-surface-muted);
 	touch-action: none;
 }
 /* The "Fn" caption. It appears with the strip — the option switches the strip,
@@ -1423,7 +1487,7 @@ div.staff div.symbol.note.htp-scale-note svg.line { right: auto; }
 	font-weight: 700;
 	line-height: 1;
 	color: var(--htp-ink);
-	background: #fff;
+	background: var(--htp-surface);
 	border: 1px solid var(--htp-border);
 	border-radius: 3px;
 	padding: 0;
@@ -1475,7 +1539,7 @@ div.staff div.symbol.note.htp-scale-note svg.line { right: auto; }
 	font-size: 14px;
 	font-weight: 600;
 	color: var(--htp-ink);
-	background: #fff;
+	background: var(--htp-surface);
 	border: 1px solid var(--htp-border);
 	border-radius: 4px;
 	padding: 0.25em 0.5em;
@@ -1533,6 +1597,18 @@ div.staff div.symbol.note.htp-scale-note svg.line { right: auto; }
 }
 .htp-fc__opt { margin: 0; font-weight: 400; display: flex; align-items: center; gap: 0.4em; }
 .htp-fc__skip { margin-left: auto; }
+
+/* These four are Bootstrap's plain `.btn-default`, whose white background and
+   border come from css/bootstrap-3.3.7/, out of scope to edit. Each also
+   carries a class of its own, so themeing it here reaches only the four
+   buttons the modules actually show — the two modal Close buttons stay
+   Bootstrap's own, unthemed, since the modals themselves are unstyled and not
+   part of this pass. */
+.htp-monitor__clear, .htp-fc__skip, .htp-pp__reset, .htp-pp__ahead {
+	background: var(--htp-surface);
+	color: var(--htp-ink);
+	border-color: var(--htp-border);
+}
 
 @media (max-width: 720px) {
 	.htp-fc { padding: 0.6em 0.7em 0; }

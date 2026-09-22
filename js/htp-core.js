@@ -438,7 +438,10 @@ window.HTP = (function (window, document) {
 		showKeyHint: false,
 		/* How fast the note trainer's notes travel, as a percentage of the
 		 * original 35px/s. */
-		scrollSpeed: 100
+		scrollSpeed: 100,
+		/* Dark theme for low-light practice. Off by default, matching every
+		 * other display setting. */
+		nightMode: false
 	};
 
 	/* Landmark palette, taken from the piano-roll project's "lesson" theme.
@@ -480,6 +483,13 @@ window.HTP = (function (window, document) {
 			if (typeof stored[key] === typeof settings[key]) settings[key] = stored[key];
 		});
 	} catch (e) { /* private mode / corrupt value: keep the defaults */ }
+
+	/* The one DOM touch in this file: css/htp.css themes off [data-htp-theme]
+	 * on <html>, and it has to be set before first paint or the page flashes
+	 * light before switching to a restored dark preference. <html> exists the
+	 * instant the parser reaches it, well before <body> or js/htp-panes.js —
+	 * which is where every other display setting is applied — has run. */
+	document.documentElement.setAttribute('data-htp-theme', settings.nightMode ? 'dark' : 'light');
 
 	var settingListeners = [];
 	var markerListeners = [];
