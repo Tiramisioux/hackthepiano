@@ -26,7 +26,8 @@
 	--htp-hover: #f0f0f0;       /* tab hover */
 	--htp-highlight: #f4f9ff;   /* a row/card picked out from its list */
 	--htp-staff-bg: #fff;       /* the clef's opaque backdrop — the "paper" */
-	--htp-staff-ink: #000;      /* clef, notehead and ledger-line default colour */
+	--htp-staff-ink: #000;      /* clef and notehead default colour — what you're reading */
+	--htp-staff-line: #000;     /* the 5 staff lines and ledger lines — the grid it sits on */
 	--htp-key-white-bg: #fff;
 	--htp-key-white-border: #555;
 	/* Tells the browser to render native widgets — the level <select>,
@@ -53,6 +54,10 @@
 	--htp-highlight: #22303e;
 	--htp-staff-bg: #1d2126;
 	--htp-staff-ink: #d8d6d2;
+	/* Dimmer than the ink on purpose: at full brightness the grid competed
+	   with the notes for attention, which a staff never should — the lines
+	   are there to read position off of, not to read themselves. */
+	--htp-staff-line: #4a4f57;
 	/* Slightly warm and dimmed rather than pure white, which would be the
 	   brightest thing on the page next to everything else that just got
 	   darker — the point of a night mode is less light reaching the eye, not
@@ -632,10 +637,11 @@ div.staffsContainer.htp-continuous div.staff div.symbol.clef { background: trans
    would otherwise win no matter the theme. A landmark notehead overrides this
    with an inline `fill` set by js/code.js's landmarkColourForSound(), which
    beats any stylesheet rule regardless of specificity, so this never fights
-   it. Ledger lines are a `<line stroke="black">`, not a fill, hence the
-   second rule. */
+   it. Ledger lines are a `<line stroke="black">`, not a fill, and coloured as
+   part of the staff grid (--htp-staff-line) rather than as ink — they are the
+   5 lines' own continuation above and below the staff, not a note. */
 div.staff div.symbol svg:not(.line) { fill: var(--htp-staff-ink); }
-div.staff div.symbol svg.line line { stroke: var(--htp-staff-ink); }
+div.staff div.symbol svg.line line { stroke: var(--htp-staff-line); }
 
 /* A staff the exercise has nothing to put on right now — this clef set does
    not use it, or its Treble/Bass switch is off — but it is still drawn,
@@ -769,7 +775,7 @@ div.staff div.lines .htp-staffline {
 	 * weight restores that meaning.
 	 */
 	margin-top: -0.5px;
-	border-top: 1px solid var(--htp-staff-ink);
+	border-top: 1px solid var(--htp-staff-line);
 }
 
 /* Free practice grows its staff container when a note falls outside the staff.
