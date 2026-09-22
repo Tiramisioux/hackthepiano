@@ -489,12 +489,13 @@ div.shareContainer { position: static; }
 	right: 0;
 	top: 0;
 	bottom: 0;
-	/* Above the clef's opaque background (10) so the rules and bands carry across
-	   it — under it, the clef's white box shows as a hole in the bands, and an
-	   arriving clef as a white slab sliding over them — but below the staff
-	   lines (100). The staff lines already draw over noteheads in this design,
-	   so markers crossing a notehead is consistent. */
-	z-index: 11;
+	/* Above the clef's opaque background (101) so the rules and bands carry
+	   across it — under it, the clef's white box shows as a hole in the bands,
+	   and an arriving clef as a white slab sliding over them — and above the
+	   staff lines (100) too, so a rule and the legend's letters read whole
+	   rather than getting cut by the line at their own coordinate. Notes stay
+	   under the lines, same as always — only the clef and the markers moved. */
+	z-index: 102;
 	pointer-events: none;
 	overflow: hidden;
 }
@@ -627,8 +628,11 @@ div.staff div.symbol.note svg.played.correct { --htp-played-colour: #1e9e5a; }
    clef above it. js/code.js sets the class from applyStaffSpacing(). */
 /* Overrides css/styles.css's literal `background: white; color: black;` on
    the same selector, loaded before this file, so the mask themes with
-   everything else instead of staying a fixed white box in dark mode. */
-div.staff div.symbol.clef { background: var(--htp-staff-bg); color: var(--htp-staff-ink); }
+   everything else instead of staying a fixed white box in dark mode. Also
+   raises it above the staff lines (100, see css/styles.css) — see
+   .htp-clef-static below for the trainer's own clef, which needs a second,
+   more specific rule to win the same change. */
+div.staff div.symbol.clef { background: var(--htp-staff-bg); color: var(--htp-staff-ink); z-index: 101; }
 
 div.staffsContainer.htp-continuous div.staff div.symbol.clef { background: transparent; }
 
@@ -1631,7 +1635,7 @@ div.staff div.symbol.note.htp-scale-note svg.line { right: auto; }
  * in from the right every ten notes was only ever an artefact of drawing it
  * through the same queue as the notes.
  */
-div.staff div.symbol.clef.htp-clef-static { z-index: 10; }
+div.staff div.symbol.clef.htp-clef-static { z-index: 101; }
 
 /* -------------------------------------- note trainer: the notes you play */
 
